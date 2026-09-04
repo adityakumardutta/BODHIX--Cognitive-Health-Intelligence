@@ -1,0 +1,35 @@
+# Backend
+backend/target/
+backend/.mvn/
+*.class
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Env
+.env
+*.env.local
+
+# OS
+.DS_Store
+
+# --- AI / tool / IDE metadata (local, never commit) ---
+.ai/
+.cline/
+.cursor/
+High-fidelity UI Design/.figma/
+High-fidelity UI Design/AGENTS.md
+High-fidelity UI Design/CLAUDE.md
+
+# --- Local generated files & logs ---
+node_modules/
+dist/
+*.log
+backend/startup-error.txt
+frontend/*.timestamp-*.mjs
+
+# --- Unreferenced AI/tool helper scripts ---
+frontend/build-css.mjs
+frontend/build-css2.mjs
+backend/pdf-extract.js
