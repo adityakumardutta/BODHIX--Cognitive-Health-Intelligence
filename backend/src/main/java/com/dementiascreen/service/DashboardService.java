@@ -9,6 +9,8 @@ import com.dementiascreen.repository.ScreeningHistoryRepository;
 import com.dementiascreen.repository.ScreeningRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class DashboardService {
 
@@ -19,20 +21,36 @@ public class DashboardService {
 
     public DashboardService(PersonRepository personRepository, ScreeningRepository screeningRepository,
                              ScreeningHistoryRepository screeningHistoryRepository,
-                             FollowUpRepository followUpRepository) {
+                             FollowUpRepository followUpRepository,
+                             com.dementiascreen.security.AccessGuard accessGuard) {
         this.personRepository = personRepository;
         this.screeningRepository = screeningRepository;
         this.screeningHistoryRepository = screeningHistoryRepository;
         this.followUpRepository = followUpRepository;
+        this.accessGuard = accessGuard;
     }
 
-    public DashboardStatsResponse getStats() {
-        long totalPeople = personRepository.count();
-        long completed = screeningRepository.countByStatus(Screening.Status.COMPLETED);
-        long pendingFollowUps = followUpRepository.countByStatus(FollowUp.Status.PENDING)
-                + followUpRepository.countByStatus(FollowUp.Status.OVERDUE);
+    private final com.dementiascreen.security.AccessGuard accessGuard;
 
-        long needingReview = personRepository.findAll().stream()
+    public DashboardStatsResponse getStats() {
+        // Scoped to the authenticated specialist's own patients (admins see all).
+        com.dementiascreen.entity.User currentUser = accessGuard.currentUser();
+        boolean admin = accessGuard.isAdmin(currentUser);
+        List<com.dementiascreen.entity.Person> myPeople = personRepository.findAll().stream()
+                .filter(p -> admin || currentUser.getId().equals(p.getRegisteredBy()))
+                .collect(java.util.stream.Collectors.toList());
+
+        long totalPeople = myPeople.size();
+        long completed = myPeople.stream()
+                .flatMap(p -> screeningRepository.findByPersonIdOrderByStartedAtDesc(p.getId()).stream())
+                .filter(s -> s.getStatus() == Screening.Status.COMPLETED)
+                .count();
+        long pendingFollowUps = followUpRepository.findAll().stream()
+                .filter(f -> admin || currentUser.getId().equals(f.getCreatedBy()))
+                .filter(f -> f.getStatus() == FollowUp.Status.PENDING || f.getStatus() == FollowUp.Status.OVERDUE)
+                .count();
+
+        long needingReview = myPeople.stream()
                 .filter(p -> {
                     var history = screeningHistoryRepository.findByPersonIdOrderByRecordedAtAsc(p.getId());
                     return !history.isEmpty() && history.get(history.size() - 1).getOverallStatus().name().equals("REVIEW_RECOMMENDED");

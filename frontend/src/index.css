@@ -27,8 +27,13 @@
   --color-accent: #0f766e;
   --color-accent-2: #2563eb;
 
-  --glass-surface: rgba(255, 255, 255, 0.60);
+  --glass-surface: rgba(255, 255, 255, 0.82);
   --glass-blur: 20px;
+
+  /* Dashboard card surfaces (light-only) */
+  --dash-card-bg: rgba(255, 255, 255, 0.92);
+  --dash-card-border: rgba(148, 174, 212, 0.38);
+  --dash-hero-bg: linear-gradient(115deg, rgba(255,255,255,0.96) 0%, rgba(240,246,255,0.94) 46%, rgba(238,240,252,0.92) 72%, rgba(232,246,250,0.90) 100%);
 
   --chart-grid: #dbe6f3;
   --chart-tick: #64748b;
@@ -171,9 +176,9 @@ body {
   --muted: rgba(15, 29, 59, 0.06);
   --radius: 18px;
   --glass-bg: rgba(255, 255, 255, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(148, 174, 212, 0.38);
   --glass-shadow: 0 8px 32px rgba(31, 65, 130, 0.10);
-  --sidebar-bg: rgba(255, 255, 255, 0.55);
+  --sidebar-bg: rgba(255, 255, 255, 0.78);
   --nav-bg: rgba(255, 255, 255, 0.72);
   --input-bg: rgba(255, 255, 255, 0.7);
   --input-border: rgba(13, 148, 136, 0.25);

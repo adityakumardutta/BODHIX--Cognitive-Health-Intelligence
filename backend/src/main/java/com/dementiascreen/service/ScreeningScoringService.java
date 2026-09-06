@@ -45,18 +45,25 @@ public class ScreeningScoringService {
                                     ScreeningRepository screeningRepository,
                                     AnswerRepository answerRepository,
                                     ScreeningResultRepository screeningResultRepository,
-                                    ScreeningHistoryRepository screeningHistoryRepository) {
+                                    ScreeningHistoryRepository screeningHistoryRepository,
+                                    com.dementiascreen.security.AccessGuard accessGuard) {
         this.questionRepository = questionRepository;
         this.sectionRepository = sectionRepository;
         this.screeningRepository = screeningRepository;
         this.answerRepository = answerRepository;
         this.screeningResultRepository = screeningResultRepository;
         this.screeningHistoryRepository = screeningHistoryRepository;
+        this.accessGuard = accessGuard;
     }
+
+    private final com.dementiascreen.security.AccessGuard accessGuard;
 
     @Transactional
     public ScreeningResultResponse submitScreening(ScreeningSubmitRequest request) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+
+        // Server-side authorization: a specialist may only screen their own patient.
+        accessGuard.assertPersonAccess(request.getPersonId());
 
         // Build a HashMap<questionId, Question> for O(1) lookups while scoring.
         List<Question> allQuestions = questionRepository.findAll();
@@ -173,6 +180,8 @@ public class ScreeningScoringService {
     public ScoreCardResponse getScoreCard(Long screeningId) {
         Screening screening = screeningRepository.findById(screeningId)
                 .orElseThrow(() -> new ResourceNotFoundException("Screening not found: " + screeningId));
+        // Server-side authorization: reject access to another specialist's screening (IDOR).
+        accessGuard.assertScreeningAccess(screening);
 
         Map<Long, ScreeningResult> resultBySection = new HashMap<>();
         for (ScreeningResult r : screeningResultRepository.findByScreeningId(screeningId)) {

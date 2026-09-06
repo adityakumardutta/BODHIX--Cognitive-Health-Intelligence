@@ -21,15 +21,21 @@ public class FollowUpService {
     private final FollowUpRepository followUpRepository;
     private final PersonRepository personRepository;
 
-    public FollowUpService(FollowUpRepository followUpRepository, PersonRepository personRepository) {
+    public FollowUpService(FollowUpRepository followUpRepository, PersonRepository personRepository,
+                           com.dementiascreen.security.AccessGuard accessGuard) {
         this.followUpRepository = followUpRepository;
         this.personRepository = personRepository;
+        this.accessGuard = accessGuard;
     }
+
+    private final com.dementiascreen.security.AccessGuard accessGuard;
 
     public FollowUpResponse create(FollowUpRequest request) {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Person person = personRepository.findById(request.getPersonId())
                 .orElseThrow(() -> new ResourceNotFoundException("Person not found: " + request.getPersonId()));
+        // Server-side authorization: only the patient's specialist can create follow-ups.
+        accessGuard.assertPersonAccess(person);
 
         FollowUp followUp = FollowUp.builder()
                 .personId(person.getId())
@@ -46,7 +52,10 @@ public class FollowUpService {
     }
 
     public List<FollowUpResponse> listAll() {
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        boolean admin = currentUser.getRole() == User.Role.ADMIN;
         return followUpRepository.findAll().stream()
+                .filter(f -> admin || currentUser.getId().equals(f.getCreatedBy()))
                 .map(f -> {
                     String name = personRepository.findById(f.getPersonId())
                             .map(Person::getFullName).orElse("Unknown");
@@ -58,6 +67,11 @@ public class FollowUpService {
     public FollowUpResponse updateStatus(Long id, String status) {
         FollowUp followUp = followUpRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Follow-up not found: " + id));
+        // Server-side authorization: only the creator (or an admin) may update.
+        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (currentUser.getRole() != User.Role.ADMIN && !currentUser.getId().equals(followUp.getCreatedBy())) {
+            throw new ResourceNotFoundException("Follow-up not found: " + id);
+        }
         followUp.setStatus(FollowUp.Status.valueOf(status));
         FollowUp saved = followUpRepository.save(followUp);
         String name = personRepository.findById(saved.getPersonId()).map(Person::getFullName).orElse("Unknown");

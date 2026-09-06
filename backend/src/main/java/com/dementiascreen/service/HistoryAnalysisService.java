@@ -17,11 +17,20 @@ public class HistoryAnalysisService {
 
     private final ScreeningHistoryRepository screeningHistoryRepository;
 
-    public HistoryAnalysisService(ScreeningHistoryRepository screeningHistoryRepository) {
+    public HistoryAnalysisService(ScreeningHistoryRepository screeningHistoryRepository,
+                                   com.dementiascreen.security.AccessGuard accessGuard,
+                                   com.dementiascreen.repository.PersonRepository personRepository) {
         this.screeningHistoryRepository = screeningHistoryRepository;
+        this.accessGuard = accessGuard;
+        this.personRepository = personRepository;
     }
 
+    private final com.dementiascreen.security.AccessGuard accessGuard;
+    private final com.dementiascreen.repository.PersonRepository personRepository;
+
     public List<Map<String, Object>> getTimeline(Long personId) {
+        // Server-side authorization: only the patient's specialist (or an admin).
+        accessGuard.assertPersonAccess(personId);
         List<ScreeningHistory> history = screeningHistoryRepository.findByPersonIdOrderByRecordedAtAsc(personId);
         return history.stream().map(h -> Map.<String, Object>of(
                 "screeningId", h.getScreeningId(),

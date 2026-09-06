@@ -6,6 +6,7 @@ import com.dementiascreen.dto.ScoreCardSectionDto;
 import com.dementiascreen.entity.Person;
 import com.dementiascreen.entity.User;
 import com.dementiascreen.exception.BadRequestException;
+import com.dementiascreen.exception.EmailDeliveryException;
 import com.dementiascreen.exception.ResourceNotFoundException;
 import com.dementiascreen.repository.PersonRepository;
 import com.lowagie.text.Document;
@@ -23,6 +24,8 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.MailException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import jakarta.mail.internet.MimeMessage;
@@ -40,12 +43,17 @@ import java.util.List;
 @Service
 public class ReportEmailService {
 
+    private static final Logger log = LoggerFactory.getLogger(ReportEmailService.class);
+
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd MMM yyyy");
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final ScreeningScoringService scoringService;
     private final PersonRepository personRepository;
     private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.host:}")
+    private String mailHost;
 
     @Value("${app.mail.from:}")
     private String mailFrom;
@@ -63,8 +71,11 @@ public class ReportEmailService {
 
     /** Sends the real evaluation report PDF to the specialist's registered email. */
     public void emailReportToSpecialist(Long screeningId, User specialist) {
-        if (mailUsername == null || mailUsername.isBlank() || mailFrom == null || mailFrom.isBlank()) {
-            throw new BadRequestException("Email sending is not configured on this server");
+        if (specialist == null || specialist.getEmail() == null || specialist.getEmail().isBlank()) {
+            throw new BadRequestException("Specialist email address is missing");
+        }
+        if (mailHost == null || mailHost.isBlank() || mailUsername == null || mailUsername.isBlank() || mailFrom == null || mailFrom.isBlank()) {
+            throw new EmailDeliveryException("Email sending is not configured on this server");
         }
         Person person = loadPersonForScreening(screeningId);
         byte[] pdf = buildReportPdf(screeningId, specialist);
@@ -84,13 +95,16 @@ public class ReportEmailService {
             helper.addAttachment("BODHIX-Screening-Report-" + screeningId + ".pdf",
                     new org.springframework.core.io.ByteArrayResource(pdf));
             mailSender.send(message);
-        } catch (BadRequestException e) {
+        } catch (BadRequestException | ResourceNotFoundException | EmailDeliveryException e) {
             throw e;
         } catch (MailException | jakarta.mail.MessagingException e) {
-            throw new BadRequestException("Unable to send the report. Please try again.");
+            log.error("Failed to send report email for screening {}: {}", screeningId, e.getMessage());
+            throw new EmailDeliveryException("Unable to send the report. Please try again.");
+        } catch (Exception e) {
+            log.error("Unexpected error preparing report email for screening {}: {}", screeningId, e.getMessage());
+            throw new EmailDeliveryException("Unable to send the report. Please try again.");
         }
     }
-
     private Person loadPersonForScreening(Long screeningId) {
         ScoreCardResponse card = scoringService.getScoreCard(screeningId);
         return personRepository.findById(card.getPersonId())

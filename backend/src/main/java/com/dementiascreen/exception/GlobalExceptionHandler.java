@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 /**
- * Centralized error handling — never leaks stack traces to the client.
+ * Centralized error handling - never leaks stack traces to the client.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -34,6 +34,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex) {
         return build(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<ErrorResponse> handleEmailDelivery(EmailDeliveryException ex) {
+        return build(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -19,4 +19,9 @@ public class ScreeningResultResponse {
     private LocalDateTime completedAt;
     private String recommendationText;
     private List<SectionResultDto> sections;
+
+    // Email delivery status (populated after auto-email attempt)
+    private Boolean emailSent;
+    private String emailRecipient;
+    private String emailError;
 }

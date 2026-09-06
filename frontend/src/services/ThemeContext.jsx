@@ -4,27 +4,19 @@ const ThemeContext = createContext(null)
 
 const STORAGE_KEY = 'ds_theme'
 
+// BODHIX is light-theme only: theme is fixed to 'light' and any previously
+// stored dark preference is ignored/cleared.
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(STORAGE_KEY) === 'dark' ? 'dark' : 'light'
-    }
-    return 'light'
-  })
+  const [theme] = useState(() => 'light')
 
   useEffect(() => {
     const root = document.documentElement
-    if (theme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-    localStorage.setItem(STORAGE_KEY, theme)
-  }, [theme])
-
-  const toggleTheme = useCallback(() => {
-    setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
+    root.classList.remove('dark')
+    localStorage.removeItem(STORAGE_KEY)
   }, [])
+
+  // Kept for API compatibility with existing consumers; light-only, no-op.
+  const toggleTheme = useCallback(() => {}, [])
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>

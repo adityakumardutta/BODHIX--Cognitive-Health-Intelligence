@@ -126,18 +126,16 @@ export default function Settings() {
           {activeSection === "appearance" && (
             <GlassCard className="p-6">
               <h2 className="font-semibold text-base mb-4" style={{ fontFamily: "Manrope, sans-serif", color: "var(--text-primary)" }}>Appearance</h2>
-              <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>Theme: {dark ? "Dark" : "Light"}</p>
+              <p className="text-sm mb-3" style={{ color: "var(--text-secondary)" }}>Theme: Light</p>
               <div className="flex gap-4">
-                {[{ label: "Light", preview: "#e8ecf5", isDark: false }, { label: "Dark", preview: "#06091a", isDark: true }].map((t) => (
-                  <button key={t.label} type="button" onClick={() => { if (dark === t.isDark) return; toggleTheme() }}
-                    className="flex flex-col items-start gap-2 p-3 rounded-2xl transition-all hover:opacity-80"
-                    style={{ border: `1px solid ${dark === t.isDark ? "var(--primary)" : "var(--glass-border)"}`, background: dark === t.isDark ? "var(--secondary)" : "transparent", cursor: "pointer", flex: 1 }}>
-                    <div className="w-full h-16 rounded-xl relative overflow-hidden" style={{ background: t.preview }}>
-                      <div className="absolute left-2 top-2 w-10 h-10 rounded-lg" style={{ background: "rgba(255,255,255,0.5)" }} />
-                    </div>
-                    <span className="text-xs font-medium" style={{ color: dark === t.isDark ? "var(--primary)" : "var(--text-secondary)" }}>{t.label}</span>
-                  </button>
-                ))}
+                <div
+                  className="flex flex-col items-start gap-2 p-3 rounded-2xl"
+                  style={{ border: "1px solid var(--primary)", background: "var(--secondary)", flex: 1 }}>
+                  <div className="w-full h-16 rounded-xl relative overflow-hidden" style={{ background: "#e8ecf5" }}>
+                    <div className="absolute left-2 top-2 w-10 h-10 rounded-lg" style={{ background: "rgba(255,255,255,0.5)" }} />
+                  </div>
+                  <span className="text-xs font-medium" style={{ color: "var(--primary)" }}>Light</span>
+                </div>
               </div>
             </GlassCard>
           )}

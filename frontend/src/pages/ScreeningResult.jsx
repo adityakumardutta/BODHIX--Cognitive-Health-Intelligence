@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { CalendarDays, CheckCircle2, ClipboardList, Download, Eye, Hash, Lightbulb, ShieldAlert, User, UserRound } from 'lucide-react'
@@ -9,25 +9,26 @@ import { useAuth } from '../services/authContext.jsx'
 import { useTheme } from '../services/ThemeContext.jsx'
 import AnimatedBackground from '../components/AnimatedBackground.jsx'
 import { Hint, Skeleton, ErrorState } from '../components/Feedback.jsx'
+import { Toast, useToast } from '../components/Toast.jsx'
 
 // Per-instrument presentation config. All scores come from the real backend
 // result; these maps only drive colours, titles and interpretation wording
 // that reflects the backend's flag state (single source of truth).
 const INSTRUMENTS = {
   AD8: {
-    title: 'AD8 – Informant Interview', accent: 'purple', max: 8,
+    title: 'AD8 â€“ Informant Interview', accent: 'purple', max: 8,
     badge: (f) => (f ? 'Threshold Reached' : 'Below Threshold'),
-    text: (f) => (f ? 'Concern identified — review recommended' : 'Low concern'),
+    text: (f) => (f ? 'Concern identified â€” review recommended' : 'Low concern'),
   },
   RUDAS: {
-    title: 'RUDAS – Cognitive Assessment', accent: 'blue', max: 30,
+    title: 'RUDAS â€“ Cognitive Assessment', accent: 'blue', max: 30,
     badge: (f) => (f ? 'Below Normal Range' : 'Within Normal Range'),
-    text: (f) => (f ? 'Possible impairment — further assessment' : 'Normal'),
+    text: (f) => (f ? 'Possible impairment â€” further assessment' : 'Normal'),
   },
   PFAQ: {
-    title: 'PFAQ – Functional Assessment', accent: 'orange', max: 30,
+    title: 'PFAQ â€“ Functional Assessment', accent: 'orange', max: 30,
     badge: (f) => (f ? 'Assistance Needed' : 'Independent'),
-    text: (f) => (f ? 'Functional limitation — support recommended' : 'Independent functioning'),
+    text: (f) => (f ? 'Functional limitation â€” support recommended' : 'Independent functioning'),
   },
 }
 
@@ -72,14 +73,14 @@ function Icon({ name = 'shield', size = 20, color = 'currentColor' }) {
 }
 
 function fmtDate(dt) {
-  if (!dt) return '—'
+  if (!dt) return 'â€”'
   const d = new Date(dt)
   if (Number.isNaN(d.getTime())) return String(dt)
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 function fmtTime(dt) {
-  if (!dt) return '—'
+  if (!dt) return 'â€”'
   const d = new Date(dt)
   if (Number.isNaN(d.getTime())) return ''
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
@@ -97,7 +98,7 @@ function InfoCell({ icon, labelText, value, sub }) {
       </span>
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">{labelText}</p>
-        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100 truncate" title={value}>{value || '—'}</p>
+        <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100 truncate" title={value}>{value || 'â€”'}</p>
         {sub && <p className="text-xs text-slate-500 dark:text-slate-400">{sub}</p>}
       </div>
     </div>
@@ -130,6 +131,7 @@ export default function ScreeningResult() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const accents = getAccents(isDark)
+  const { toast, showToast, hideToast } = useToast()
 
   const [person, setPerson] = useState(null)
   const [creatingFollowUp, setCreatingFollowUp] = useState(false)
@@ -142,6 +144,19 @@ export default function ScreeningResult() {
   const [followUps, setFollowUps] = useState([])
 
   const result = localResult
+  const emailToastShownRef = useRef(false)
+
+  // Show toast for auto-email status from backend (only once per result)
+  useEffect(() => {
+    if (emailToastShownRef.current) return
+    if (result?.emailSent === true) {
+      emailToastShownRef.current = true
+      showToast('Report sent successfully', `Sent to: ${result.emailRecipient || user?.email || 'your email'}`, 'success')
+    } else if (result?.emailSent === false && result?.emailError) {
+      emailToastShownRef.current = true
+      showToast('Email delivery failed', result.emailError, 'error')
+    }
+  }, [result?.emailSent, result?.emailError, result?.emailRecipient, user?.email, showToast])
 
   useEffect(() => {
     if (!personId) return
@@ -260,17 +275,26 @@ export default function ScreeningResult() {
     try {
       await api.post(`/screenings/${result.screeningId}/email-report`)
       setEmailState('success')
+      showToast('Report sent successfully', `Sent to: ${user?.email || 'your email'}`, 'success')
     } catch (e) {
       setEmailState('error')
+      showToast('Email delivery failed', e.message || 'Unable to send report', 'error')
     } finally {
       setTimeout(() => setEmailState((s) => (s === 'success' || s === 'error' ? 'idle' : s)), 4000)
     }
   }
-
   const screeningDate = result.completedAt || person?.lastScreeningDate
 
   return (
     <div className="result-page relative min-h-screen text-foreground">
+      {/* Email Status Toast */}
+      <Toast
+        message={toast.message}
+        subMessage={toast.subMessage}
+        type={toast.type}
+        isVisible={toast.visible}
+        onClose={hideToast}
+      />
       <AnimatedBackground />
       <main className="relative z-10 min-h-screen px-4 py-8 sm:px-6 lg:py-12">
         <div className="mx-auto flex max-w-5xl flex-col gap-4">
@@ -303,9 +327,9 @@ export default function ScreeningResult() {
 
           <section className="result-card result-hover grid grid-cols-1 gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: User, label: 'Person', value: person?.fullName || `Person #${personId}`, sub: person ? `${label(person.gender)}${person.age ? ` • ${person.age} years` : ''}` : '' },
+              { icon: User, label: 'Person', value: person?.fullName || `Person #${personId}`, sub: person ? `${label(person.gender)}${person.age ? ` â€¢ ${person.age} years` : ''}` : '' },
               { icon: CalendarDays, label: 'Screening date', value: fmtDate(screeningDate), sub: fmtTime(screeningDate) },
-              { icon: Hash, label: 'Screening ID', value: result.screeningId ? `#${result.screeningId}` : '—', sub: 'Recorded' },
+              { icon: Hash, label: 'Screening ID', value: result.screeningId ? `#${result.screeningId}` : 'â€”', sub: 'Recorded' },
               { icon: UserRound, label: 'Completed by', value: user?.fullName || 'Current user', sub: label(user?.role) },
             ].map((m) => <div key={m.label} className="result-list-row flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-primary"><m.icon className="h-5 w-5" /></span><div className="min-w-0"><p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{m.label}</p><p className="truncate text-sm font-bold">{m.value}</p><p className="truncate text-xs text-muted-foreground">{m.sub}</p></div></div>)}
           </section>
@@ -316,7 +340,7 @@ export default function ScreeningResult() {
             <div className="flex flex-col items-center gap-2"><span className="relative flex h-16 w-16 items-center justify-center"><span className="result-ring-pulse absolute inset-0 rounded-full" style={{ background: `color-mix(in oklab, ${isLow ? 'var(--teal)' : 'var(--rose)'} 25%, transparent)` }} /><span className="relative flex h-16 w-16 items-center justify-center rounded-full border-2 bg-card" style={{ borderColor: isLow ? 'var(--teal)' : 'var(--rose)', color: isLow ? 'var(--teal)' : 'var(--rose)' }}><ShieldAlert className="h-7 w-7" /></span></span><p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Risk level</p><p className="text-sm font-extrabold" style={{ color: isLow ? 'var(--teal)' : 'var(--rose)' }}>{isLow ? 'LOW' : 'ELEVATED'}</p></div>
           </section>
 
-          <div className="mt-2 flex items-center justify-between px-1"><h3 className="text-lg font-bold tracking-tight">Assessment Summary</h3><button className="group text-sm font-semibold text-primary" onClick={() => setShowScoreCard(true)}>View detailed breakdown <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">→</span></button></div>
+          <div className="mt-2 flex items-center justify-between px-1"><h3 className="text-lg font-bold tracking-tight">Assessment Summary</h3><button className="group text-sm font-semibold text-primary" onClick={() => setShowScoreCard(true)}>View detailed breakdown <span className="inline-block transition-transform duration-300 group-hover:translate-x-1">â†’</span></button></div>
           <section className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {Object.keys(INSTRUMENTS).map((code) => { const cfg = INSTRUMENTS[code]; const item = sec[code]; const accent = ACCENTS[cfg.accent]; const flagged = !!item?.flaggedForReview; return <article key={cfg.title} className="result-metric-card p-5" style={{ background: code === 'AD8' ? 'var(--violet-soft)' : code === 'RUDAS' ? 'var(--sky-soft)' : 'var(--amber-soft)' }}><div className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full" style={{ background: accent.dot, boxShadow: `0 0 0 4px color-mix(in oklab, ${accent.dot} 18%, transparent)` }} /><p className="text-sm font-bold">{cfg.title}</p></div><div className="mt-4 flex items-end justify-between gap-3"><div className="flex items-baseline gap-1.5"><span className="text-3xl font-extrabold"><AnimatedScore value={Number(item?.rawScore ?? 0)} /></span><span className="text-sm font-semibold text-muted-foreground">/ {cfg.max}</span><span className="ml-1 text-xs text-muted-foreground">Score</span></div><Badge tone={flagged ? 'review' : 'low'}>{cfg.badge(flagged)}</Badge></div></article> })}
           </section>
@@ -339,7 +363,7 @@ export default function ScreeningResult() {
               ].map((f) => (
                 <div key={f.code} className="flex items-center gap-2 rounded-xl border px-3 py-2.5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
                   <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: f.ok ? 'rgba(13,144,73,.15)' : 'rgba(190,44,61,.15)', color: f.ok ? 'var(--success)' : 'var(--danger)' }}>
-                    {f.ok ? '✓' : '!'}
+                    {f.ok ? 'âœ“' : '!'}
                   </span>
                   <div>
                     <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{f.code}</p>
@@ -361,7 +385,7 @@ export default function ScreeningResult() {
               <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
                 {nextSteps.map((s) => (
                   <li key={s} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
-                    <span style={{ color: 'var(--color-accent)' }}>•</span>{s}
+                    <span style={{ color: 'var(--color-accent)' }}>â€¢</span>{s}
                   </li>
                 ))}
               </ul>
@@ -381,7 +405,7 @@ export default function ScreeningResult() {
                 { ok: !!user?.fullName, text: 'Specialist/user recorded' },
               ].map((row) => (
                 <div key={row.text} className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
-                  <span className="text-success" style={{ color: row.ok ? 'var(--success)' : 'var(--text-tertiary)' }}>{row.ok ? '✓' : '—'}</span>
+                  <span className="text-success" style={{ color: row.ok ? 'var(--success)' : 'var(--text-tertiary)' }}>{row.ok ? 'âœ“' : 'â€”'}</span>
                   <div className="min-w-0">
                     <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{row.text}</p>
                     {row.value && <p className="text-[11px] font-semibold" style={{ color: 'var(--color-accent)' }}>{row.value}</p>}
@@ -400,7 +424,7 @@ export default function ScreeningResult() {
             <ul className="mt-4 grid gap-2 sm:grid-cols-3">
               {['Evidence-based instruments', 'Transparent scoring', 'Professional review required'].map((t) => (
                 <li key={t} className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
-                  <span className="text-success" style={{ color: 'var(--success)' }}>✓</span>
+                  <span className="text-success" style={{ color: 'var(--success)' }}>âœ“</span>
                   <span style={{ color: 'var(--text-primary)' }}>{t}</span>
                 </li>
               ))}
@@ -414,7 +438,7 @@ export default function ScreeningResult() {
             <section className="result-card result-hover p-6" style={{ background: 'var(--color-surface)' }}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-lg font-bold tracking-tight" style={{ color: 'var(--danger)' }}>Follow-up recommended</h3>
-                <Hint label="What does follow-up mean?">A follow-up is a scheduled professional recheck after a review-recommended screening so the person’s condition can be monitored and an appropriate plan agreed.</Hint>
+                <Hint label="What does follow-up mean?">A follow-up is a scheduled professional recheck after a review-recommended screening so the personâ€™s condition can be monitored and an appropriate plan agreed.</Hint>
               </div>
               <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                 <div className="rounded-xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
@@ -434,17 +458,17 @@ export default function ScreeningResult() {
               </div>
               <div className="mt-4 flex flex-wrap gap-3">
                 <Button onClick={handleCreateFollowUp} disabled={creatingFollowUp || followUpCreated} variant="danger">
-                  {followUpCreated ? 'Follow-up created' : creatingFollowUp ? 'Creating…' : 'Create Follow-up'}
+                  {followUpCreated ? 'Follow-up created' : creatingFollowUp ? 'Creatingâ€¦' : 'Create Follow-up'}
                 </Button>
                 <Button variant="secondary" onClick={() => navigate('/followups')} title="View all follow-ups">View Follow-ups</Button>
               </div>
             </section>
           )}
 
-          <footer className="result-card result-hover grid grid-cols-1 items-center gap-6 p-6 sm:grid-cols-3"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-primary-foreground" style={{ background: 'var(--teal)' }}>{(user?.fullName || 'CW').split(/\s+/).map((n) => n[0]).join('').slice(0, 2).toUpperCase()}</span><div><p className="text-xs text-muted-foreground">Completed by</p><p className="text-sm font-bold">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{label(user?.role)}</p></div></div><div className="sm:border-l sm:pl-6"><p className="text-xs text-muted-foreground">Signature</p><p className="font-script text-3xl leading-tight">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{fmtDate(screeningDate)} • {fmtTime(screeningDate)}</p></div><div className="flex items-center sm:justify-end"><img src="/assets/bodhix-logo-official.png" alt="BODHIX — Cognitive Health Intelligence" style={{ height: 64, width: 'auto', maxWidth: 220, objectFit: 'contain' }} className="drop-shadow-[0_4px_14px_rgba(37,99,235,0.25)]" /></div></footer>
-          <div className="rounded-2xl border border-dashed border-slate-400/25 bg-slate-500/5 p-4 text-center"><p className="text-xs text-muted-foreground">Screening support only — not a diagnostic tool. Results require professional review.</p></div>
+          <footer className="result-card result-hover grid grid-cols-1 items-center gap-6 p-6 sm:grid-cols-3"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-primary-foreground" style={{ background: 'var(--teal)' }}>{(user?.fullName || 'CW').split(/\s+/).map((n) => n[0]).join('').slice(0, 2).toUpperCase()}</span><div><p className="text-xs text-muted-foreground">Completed by</p><p className="text-sm font-bold">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{label(user?.role)}</p></div></div><div className="sm:border-l sm:pl-6"><p className="text-xs text-muted-foreground">Signature</p><p className="font-script text-3xl leading-tight">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{fmtDate(screeningDate)} â€¢ {fmtTime(screeningDate)}</p></div><div className="flex items-center sm:justify-end"><img src="/assets/bodhix-logo-official.png" alt="BODHIX â€” Cognitive Health Intelligence" style={{ height: 64, width: 'auto', maxWidth: 220, objectFit: 'contain' }} className="drop-shadow-[0_4px_14px_rgba(37,99,235,0.25)]" /></div></footer>
+          <div className="rounded-2xl border border-dashed border-slate-400/25 bg-slate-500/5 p-4 text-center"><p className="text-xs text-muted-foreground">Screening support only â€” not a diagnostic tool. Results require professional review.</p></div>
           {error && <p className="text-sm text-warning">{error}</p>}{followUpCreated && <p className="text-sm text-success">Follow-up created.</p>}
-          <div className="flex flex-wrap items-center gap-3"><Button variant="secondary" onClick={() => navigate(`/persons/${personId}`)}>View Details</Button><Button variant="secondary" onClick={() => navigate(`/persons/${personId}`)}>Save &amp; Finish</Button><Button onClick={handleCreateFollowUp} disabled={creatingFollowUp || followUpCreated}>{followUpCreated ? 'Follow-up created' : creatingFollowUp ? 'Creating…' : 'Create Follow-up'}</Button></div>
+          <div className="flex flex-wrap items-center gap-3"><Button variant="secondary" onClick={() => navigate(`/persons/${personId}`)}>View Details</Button><Button variant="secondary" onClick={() => navigate(`/persons/${personId}`)}>Save &amp; Finish</Button><Button onClick={handleCreateFollowUp} disabled={creatingFollowUp || followUpCreated}>{followUpCreated ? 'Follow-up created' : creatingFollowUp ? 'Creatingâ€¦' : 'Create Follow-up'}</Button></div>
         </div>
       </main>
       {showScoreCard && <ScoreCardModal result={result} person={person} user={user} screeningDate={screeningDate} isDark={isDark} onClose={() => setShowScoreCard(false)} />}
@@ -543,21 +567,21 @@ function ScoreCardModal({ result, person, user, screeningDate, isDark, onClose }
             <div className="space-y-6">
               <div className="flex items-center justify-between border-b-2 pb-4" style={{ borderColor: '#2563eb' }}>
                 <div className="flex items-center gap-3">
-                  <img src="/assets/bodhix-logo-official.png" alt="BODHIX — Cognitive Health Intelligence" style={{ height: 56, width: 'auto', maxWidth: 190, objectFit: 'contain' }} />
+                  <img src="/assets/bodhix-logo-official.png" alt="BODHIX â€” Cognitive Health Intelligence" style={{ height: 56, width: 'auto', maxWidth: 190, objectFit: 'contain' }} />
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Screening Score Card</p>
                   </div>
                 </div>
                 <div className="text-right text-xs text-slate-500">
                   <p>Screening ID: <span className="font-semibold text-slate-800">#{card.screeningId}</span></p>
-                  <p>{fmtDate(card.completedAt || screeningDate)} · {fmtTime(card.completedAt || screeningDate)}</p>
-                  <p>Completed by: <span className="font-semibold text-slate-800">{user?.fullName || '—'}</span></p>
+                  <p>{fmtDate(card.completedAt || screeningDate)} Â· {fmtTime(card.completedAt || screeningDate)}</p>
+                  <p>Completed by: <span className="font-semibold text-slate-800">{user?.fullName || 'â€”'}</span></p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4 rounded-2xl bg-slate-50 p-4 sm:grid-cols-4">
                 <ScoreCell labelText="Person" value={person?.fullName || `Person #${card.personId}`} />
-                <ScoreCell labelText="Gender" value={person ? (label(person.gender) || '—') : '—'} />
-                <ScoreCell labelText="Age" value={person?.age ? `${person.age} years` : '—'} />
+                <ScoreCell labelText="Gender" value={person ? (label(person.gender) || 'â€”') : 'â€”'} />
+                <ScoreCell labelText="Age" value={person?.age ? `${person.age} years` : 'â€”'} />
                 <ScoreCell labelText="Overall" value={overall === 'LOW_CONCERN' ? 'Low Concern' : 'Review Recommended'} />
               </div>
               {sections.map((s) => {
@@ -590,30 +614,30 @@ function ScoreCardModal({ result, person, user, screeningDate, isDark, onClose }
                         ))}
                       </tbody>
                     </table>
-                    <p className="mt-3 text-sm font-medium" style={{ color: accent.text }}>Interpretation: {cfg.badge(s.flaggedForReview)} — {cfg.text(s.flaggedForReview)}</p>
+                    <p className="mt-3 text-sm font-medium" style={{ color: accent.text }}>Interpretation: {cfg.badge(s.flaggedForReview)} â€” {cfg.text(s.flaggedForReview)}</p>
                   </div>
                 )
               })}
               <div className="rounded-2xl border p-5" style={{ borderColor: overall === 'LOW_CONCERN' ? 'rgba(13,144,73,.35)' : 'rgba(190,44,61,.35)', background: overall === 'LOW_CONCERN' ? 'rgba(13,144,73,.08)' : 'rgba(190,44,61,.08)' }}>
                 <p className="text-xs uppercase tracking-widest text-slate-500">Overall Result &amp; Risk Level</p>
-                <p className="text-xl font-bold" style={{ color: overall === 'LOW_CONCERN' ? '#0d9049' : '#be2c3b' }}>{overall === 'LOW_CONCERN' ? 'Low Concern · Risk: LOW' : 'Review Recommended · Risk: ELEVATED'}</p>
+                <p className="text-xl font-bold" style={{ color: overall === 'LOW_CONCERN' ? '#0d9049' : '#be2c3b' }}>{overall === 'LOW_CONCERN' ? 'Low Concern Â· Risk: LOW' : 'Review Recommended Â· Risk: ELEVATED'}</p>
                 <p className="mt-2 text-sm text-slate-600">{result.recommendationText}</p>
               </div>
-              <p className="text-center text-[11px] text-slate-500">Screening support only — not a diagnostic tool. Results require professional review by a qualified healthcare professional.</p>
+              <p className="text-center text-[11px] text-slate-500">Screening support only â€” not a diagnostic tool. Results require professional review by a qualified healthcare professional.</p>
 
-              {/* Signature / completed-by strip — real specialist from the authenticated session */}
+              {/* Signature / completed-by strip â€” real specialist from the authenticated session */}
               <div className="flex flex-col items-center gap-6 rounded-2xl border border-slate-200 bg-slate-50 p-5 sm:flex-row">
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white" style={{ background: 'linear-gradient(135deg,#2563eb,#0ea5e9)' }}>{(user?.fullName || 'CW').split(/\s+/).map((n) => n[0]).join('').slice(0, 2).toUpperCase()}</span>
                   <div className="min-w-0">
                     <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Completed by</p>
-                    <p className="truncate text-sm font-bold text-slate-900">{user?.fullName || '—'}</p>
+                    <p className="truncate text-sm font-bold text-slate-900">{user?.fullName || 'â€”'}</p>
                     <p className="text-xs text-slate-500">{label(user?.role)}</p>
                   </div>
                 </div>
                 <div className="sm:border-l sm:border-slate-200 sm:pl-6">
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">Signature</p>
-                  <p className="font-script text-3xl leading-tight text-slate-900" title="Signature representation">{user?.fullName || '—'}</p>
+                  <p className="font-script text-3xl leading-tight text-slate-900" title="Signature representation">{user?.fullName || 'â€”'}</p>
                   <p className="text-[10px] text-slate-400">Signature representation of the completing specialist</p>
                 </div>
                 <div className="sm:ml-auto text-right">
@@ -621,7 +645,7 @@ function ScoreCardModal({ result, person, user, screeningDate, isDark, onClose }
                   <p className="text-sm font-bold text-slate-900">{fmtDate(card.completedAt || screeningDate)}</p>
                   <p className="text-xs text-slate-500">{fmtTime(card.completedAt || screeningDate)}</p>
                 </div>
-                <img src="/assets/bodhix-logo-official.png" alt="BODHIX — Cognitive Health Intelligence" style={{ height: 52, width: 'auto', maxWidth: 180, objectFit: 'contain' }} />
+                <img src="/assets/bodhix-logo-official.png" alt="BODHIX â€” Cognitive Health Intelligence" style={{ height: 52, width: 'auto', maxWidth: 180, objectFit: 'contain' }} />
               </div>
             </div>
           )}
@@ -636,7 +660,7 @@ function ScoreCell({ labelText, value }) {
   return (
     <div>
       <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500">{labelText}</p>
-      <p className="mt-0.5 truncate text-sm font-semibold text-slate-900" title={value}>{value || '—'}</p>
+      <p className="mt-0.5 truncate text-sm font-semibold text-slate-900" title={value}>{value || 'â€”'}</p>
     </div>
   )
 }

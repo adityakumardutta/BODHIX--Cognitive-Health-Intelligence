@@ -1,13 +1,10 @@
 import { useAuth } from '../services/authContext.jsx'
 import { useOffline } from '../services/offlineContext.jsx'
-import { useTheme } from '../services/ThemeContext.jsx'
 import { Icons } from './Icons.jsx'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const { isOnline, pendingCount } = useOffline()
-  const { theme, toggleTheme } = useTheme()
-  const dark = theme === 'dark'
 
   const initials = user?.fullName
     ? user.fullName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -25,7 +22,7 @@ export default function Navbar() {
           {isOnline ? 'Online' : 'Offline mode'}
           {pendingCount > 0 && (
             <span style={{ color: '#f59e0b' }} className="ml-2 font-semibold">
-              · {pendingCount} pending sync
+              ï¿½ {pendingCount} pending sync
             </span>
           )}
         </span>
@@ -50,17 +47,6 @@ export default function Navbar() {
             </div>
           </div>
         </div>
-
-        {/* Theme toggle */}
-        <button
-          onClick={toggleTheme}
-          className="theme-toggle w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ color: 'var(--text-secondary)' }}
-          title={dark ? 'Switch to light' : 'Switch to dark'}
-          aria-label="Toggle theme"
-        >
-          {dark ? <Icons.Sun /> : <Icons.Moon />}
-        </button>
 
         {/* Logout */}
         <button

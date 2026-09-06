@@ -50,6 +50,18 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(headers -> headers
+                 // Hardened response headers for the API (do not break JSON/PDF downloads).
+                 .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
+                 .frameOptions(frame -> frame.deny())
+                 .referrerPolicy(referrer -> referrer.policy(
+                     org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                 .httpStrictTransportSecurity(hsts -> hsts
+                     .includeSubDomains(true)
+                     .preload(true)) // only emitted over HTTPS by Spring Security
+                 .crossOriginOpenerPolicy(cop -> cop.policy(
+                     org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN_ALLOW_POPUPS))
+             )
             .authorizeHttpRequests(auth -> auth
                  .requestMatchers("/api/auth/**").permitAll()
                  .requestMatchers("/", "/error", "/actuator/health", "/actuator/info").permitAll()

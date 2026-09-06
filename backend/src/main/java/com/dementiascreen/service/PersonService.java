@@ -24,11 +24,15 @@ public class PersonService {
     private final ScreeningHistoryRepository screeningHistoryRepository;
 
     public PersonService(PersonRepository personRepository, ScreeningRepository screeningRepository,
-                          ScreeningHistoryRepository screeningHistoryRepository) {
+                          ScreeningHistoryRepository screeningHistoryRepository,
+                          com.dementiascreen.security.AccessGuard accessGuard) {
         this.personRepository = personRepository;
         this.screeningRepository = screeningRepository;
         this.screeningHistoryRepository = screeningHistoryRepository;
+        this.accessGuard = accessGuard;
     }
+
+    private final com.dementiascreen.security.AccessGuard accessGuard;
 
     public PersonResponse register(PersonRequest req) {
         User currentUser = currentUser();
@@ -50,7 +54,10 @@ public class PersonService {
     }
 
     public List<PersonResponse> listAll() {
+        User currentUser = currentUser();
+        boolean admin = currentUser.getRole() == User.Role.ADMIN;
         return personRepository.findAll().stream()
+                .filter(p -> admin || currentUser.getId().equals(p.getRegisteredBy()))
                 .sorted(Comparator.comparing(Person::getCreatedAt).reversed())
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -59,11 +66,15 @@ public class PersonService {
     public List<PersonResponse> search(String query) {
         // Simple linear filter over an in-memory list — appropriate at
         // clinic-scale data volumes and keeps search logic transparent.
+        // Scoped to the authenticated specialist's own patients (IDOR protection).
         if (query == null || query.isBlank()) {
             return listAll();
         }
+        User currentUser = currentUser();
+        boolean admin = currentUser.getRole() == User.Role.ADMIN;
         String lower = query.toLowerCase();
         return personRepository.findAll().stream()
+                .filter(p -> admin || currentUser.getId().equals(p.getRegisteredBy()))
                 .filter(p -> p.getFullName().toLowerCase().contains(lower))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
@@ -72,6 +83,8 @@ public class PersonService {
     public PersonResponse getById(Long id) {
         Person person = personRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Person not found: " + id));
+        // Server-side authorization: specialists may only open their own patients.
+        accessGuard.assertPersonAccess(person);
         return toResponse(person);
     }
 

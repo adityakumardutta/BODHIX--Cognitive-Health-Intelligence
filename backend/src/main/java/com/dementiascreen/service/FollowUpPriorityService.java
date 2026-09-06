@@ -35,14 +35,23 @@ public class FollowUpPriorityService {
 
     public FollowUpPriorityService(PersonRepository personRepository,
                                     ScreeningHistoryRepository screeningHistoryRepository,
-                                    FollowUpRepository followUpRepository) {
+                                    FollowUpRepository followUpRepository,
+                                    com.dementiascreen.security.AccessGuard accessGuard) {
         this.personRepository = personRepository;
         this.screeningHistoryRepository = screeningHistoryRepository;
         this.followUpRepository = followUpRepository;
+        this.accessGuard = accessGuard;
     }
 
+    private final com.dementiascreen.security.AccessGuard accessGuard;
+
     public List<PriorityItemDto> getPriorityList() {
-        List<Person> people = personRepository.findAll();
+        // Scoped to the authenticated specialist's own patients (IDOR protection).
+        com.dementiascreen.entity.User currentUser = accessGuard.currentUser();
+        boolean admin = accessGuard.isAdmin(currentUser);
+        List<Person> people = personRepository.findAll().stream()
+                .filter(p -> admin || currentUser.getId().equals(p.getRegisteredBy()))
+                .collect(Collectors.toList());
         List<PriorityCandidate> candidates = new ArrayList<>();
 
         for (Person person : people) {

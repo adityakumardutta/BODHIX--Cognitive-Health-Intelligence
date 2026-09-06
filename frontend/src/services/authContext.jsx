@@ -47,6 +47,18 @@ export function AuthProvider({ children }) {
     return res
   }
 
+  // Google sign-in: sends the Firebase ID token + profile name to the real
+  // backend /auth/firebase endpoint, which verifies the token server-side and
+  // returns the normal BODHIX JWT. Role always comes from the backend.
+  async function googleLogin(idToken, name) {
+    const res = await api.post('/auth/firebase', { idToken, name })
+    localStorage.setItem('ds_token', res.token)
+    const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role }
+    localStorage.setItem('ds_user', JSON.stringify(userInfo))
+    setUser(userInfo)
+    return userInfo
+  }
+
   function logout() {
     localStorage.removeItem('ds_token')
     localStorage.removeItem('ds_user')
@@ -54,7 +66,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, updateProfile, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, googleLogin, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )

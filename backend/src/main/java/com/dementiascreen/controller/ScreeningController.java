@@ -9,6 +9,8 @@ import com.dementiascreen.service.QuestionService;
 import com.dementiascreen.service.ReportEmailService;
 import com.dementiascreen.service.ScreeningScoringService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +20,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/screenings")
 public class ScreeningController {
+
+    private static final Logger log = LoggerFactory.getLogger(ScreeningController.class);
 
     private final ScreeningScoringService scoringService;
     private final QuestionService questionService;
@@ -51,8 +55,30 @@ public class ScreeningController {
         return Map.of("status", "sent");
     }
 
+    /**
+     * Submits a screening and automatically sends the report email to the
+     * authenticated specialist. Returns the result with email status.
+     */
     @PostMapping
-    public ScreeningResultResponse submit(@Valid @RequestBody ScreeningSubmitRequest request) {
-        return scoringService.submitScreening(request);
+    public ScreeningResultResponse submit(@Valid @RequestBody ScreeningSubmitRequest request,
+                                          @AuthenticationPrincipal User user) {
+        ScreeningResultResponse result = scoringService.submitScreening(request);
+
+        // Automatically send report email after successful screening
+        if (result != null && result.getScreeningId() != null && user != null) {
+            try {
+                reportEmailService.emailReportToSpecialist(result.getScreeningId(), user);
+                result.setEmailSent(true);
+                result.setEmailRecipient(user.getEmail());
+                log.info("Auto-sent report email for screening {} to {}", result.getScreeningId(), user.getEmail());
+            } catch (Exception e) {
+                // Email failure should not fail the screening submission
+                result.setEmailSent(false);
+                result.setEmailError("Report generated, but email delivery is currently unavailable.");
+                log.warn("Auto-email failed for screening {}: {}", result.getScreeningId(), e.getMessage());
+            }
+        }
+
+        return result;
     }
 }
