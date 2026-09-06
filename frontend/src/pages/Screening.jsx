@@ -4,6 +4,7 @@ import { api } from '../services/api.js'
 import { useOffline } from '../services/offlineContext.jsx'
 import QuestionCard from '../components/QuestionCard.jsx'
 import RudasTaskCard from '../components/RudasTaskCard.jsx'
+import { Skeleton, ErrorState, EmptyState } from '../components/Feedback.jsx'
 
 const SECTIONS = ['AD8', 'RUDAS', 'PFAQ']
 const SECTION_NAMES = { AD8: 'AD8 Informant/Self Interview', RUDAS: 'RUDAS Cognitive Assessment', PFAQ: 'Functional Activities (PFAQ)' }
@@ -94,15 +95,27 @@ export default function Screening() {
   const totalQuestionsInSection = questions.length
 
   if (loading && !currentQuestion) {
-    return <p className="text-muted text-center py-12">Loading screening…</p>
+    return (
+      <div className="max-w-xl mx-auto py-8">
+        <Skeleton lines={6} />
+      </div>
+    )
   }
 
   if (error) {
-    return <p className="text-warning text-center py-12">{error}</p>
+    return (
+      <div className="max-w-xl mx-auto py-8">
+        <ErrorState title="Unable to load screening questions" onRetry={() => window.location.reload()} />
+      </div>
+    )
   }
 
   if (!currentQuestion) {
-    return <p className="text-muted text-center py-12">No questions configured for this section yet.</p>
+    return (
+      <div className="max-w-xl mx-auto py-8">
+        <EmptyState title="No questions available" description="No questions are configured for this section yet." />
+      </div>
+    )
   }
 
   return (
@@ -110,6 +123,7 @@ export default function Screening() {
       {sectionCode === 'RUDAS' ? (
         <RudasTaskCard
           sectionName={SECTION_NAMES[sectionCode]}
+          instrument={sectionCode}
           current={questionIndex + 1}
           total={totalQuestionsInSection}
           question={currentQuestion}
@@ -123,6 +137,7 @@ export default function Screening() {
       ) : (
         <QuestionCard
           sectionName={SECTION_NAMES[sectionCode]}
+          instrument={sectionCode}
           current={questionIndex + 1}
           total={totalQuestionsInSection}
           question={currentQuestion}

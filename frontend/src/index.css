@@ -1826,4 +1826,48 @@ html.dark .result-page a:focus-visible {
   display: grid;
   place-items: center;
   flex-shrink: 0;
+/* ============ FEEDBACK PRIMITIVES (skeleton + tooltip) ============ */
+
+/* Skeleton shimmer — light + dark safe */
+.skeleton-block {
+  background: linear-gradient(90deg, rgba(100,116,139,.12) 25%, rgba(100,116,139,.22) 37%, rgba(100,116,139,.12) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+html.dark .skeleton-block {
+  background: linear-gradient(90deg, rgba(148,197,255,.10) 25%, rgba(148,197,255,.20) 37%, rgba(148,197,255,.10) 63%);
+  background-size: 400% 100%;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+html.dark .skeleton-block { animation: skeleton-shimmer 1.4s ease-in-out infinite; }
+
+/* Tooltip: show on hover of the wrapper and on keyboard focus of the trigger */
+.hint-wrap:hover .hint-popover,
+.hint-trigger:focus + .hint-popover {
+  display: block !important;
+}
+.hint-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 240px;
+  max-width: 80vw;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-md);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.hint-trigger:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 }

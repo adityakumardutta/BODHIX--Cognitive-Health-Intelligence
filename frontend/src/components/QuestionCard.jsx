@@ -1,8 +1,9 @@
 import Button from './Button.jsx'
 import ProgressBar from './ProgressBar.jsx'
+import ProvenanceBadge from './ProvenanceBadge.jsx'
 
 export default function QuestionCard({
-  sectionName, current, total, question, value, onChange, onBack, onNext, isLast, backDisabled = false,
+  sectionName, current, total, question, value, onChange, onBack, onNext, isLast, backDisabled = false, instrument,
 }) {
   const optionScores = question.optionsJson ? JSON.parse(question.optionsJson) : null
   const options = optionScores ? Object.keys(optionScores) : null
@@ -12,6 +13,7 @@ export default function QuestionCard({
   return (
     <div className="glass-pop rounded-2xl p-6 max-w-xl mx-auto shadow-glow">
       <p className="text-xs uppercase tracking-wide text-muted mb-2">{sectionName}</p>
+      <ProvenanceBadge instrument={instrument} sectionName={sectionName} />
       <ProgressBar value={current} max={total} label={`Question ${current} of ${total}`} />
 
       <p className="mt-6 text-lg text-primary leading-relaxed">{question.promptText}</p>

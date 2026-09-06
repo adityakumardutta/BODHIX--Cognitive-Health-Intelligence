@@ -217,6 +217,11 @@ public class ReportEmailService {
             doc.add(new Paragraph("DISCLAIMER", h2));
             doc.add(new Paragraph("Screening support only - not a diagnostic tool. Results require "
                     + "professional review by a qualified healthcare professional.", small));
+            doc.add(new Paragraph("CLINICAL EVIDENCE & METHODOLOGY", h2));
+            doc.add(new Paragraph("This report is based on established, evidence-based screening instruments. Responses are evaluated using the predefined scoring rules of each instrument.", value));
+            doc.add(new Paragraph("AD8: Galvin JE et al. Neurology. 2005;65(4):559-564.", small));
+            doc.add(new Paragraph("RUDAS: Storey JE et al. Int Psychogeriatr. 2004;16(1):13-31.", small));
+            doc.add(new Paragraph("PFAQ: Pfeffer RI et al. J Gerontol. 1982;37(3):323-329.", small));
             doc.add(spacer(14));
 
             // ---- Signature footer (kept together as one unit) ----

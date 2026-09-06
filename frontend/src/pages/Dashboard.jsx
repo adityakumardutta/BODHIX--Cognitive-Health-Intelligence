@@ -6,11 +6,12 @@ import GlassCard from '../components/GlassCard.jsx'
 import StatCard from '../components/StatCard.jsx'
 import { StatusBadge } from '../components/Badge.jsx'
 import { Icons } from '../components/Icons.jsx'
+import { Skeleton } from '../components/Feedback.jsx'
 
-// Defensive field mapping — works with the real /persons API shape
+// Defensive field mapping ï¿½ works with the real /persons API shape
 function personName(p) { return p.name || p.fullName || 'Unnamed' }
-function personAge(p) { return p.age ?? p.ageYears ?? '—' }
-function personLocation(p) { return p.location || p.district || p.region || '—' }
+function personAge(p) { return p.age ?? p.ageYears ?? 'ï¿½' }
+function personLocation(p) { return p.location || p.district || p.region || 'ï¿½' }
 function personLastScreening(p) {
   const v = p.lastScreening || p.lastScreeningDate || p.lastScreenedAt
   return v ? String(v).slice(0, 10) : 'Not screened'
@@ -22,11 +23,13 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null)
   const [recent, setRecent] = useState([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([api.get('/dashboard/statistics'), api.get('/persons')])
       .then(([s, people]) => { setStats(s); setRecent(people.slice(0, 5)) })
       .catch((e) => setError(e.message))
+    .finally(() => setLoading(false))
   }, [])
 
   return (
@@ -47,6 +50,16 @@ export default function Dashboard() {
       </div>
 
       {error && <p className="text-sm" style={{ color: '#ef4444' }}>{error}</p>}
+
+      {!loading && (
+        <div className="flex flex-col gap-1 rounded-2xl border px-5 py-4 sm:flex-row sm:items-center sm:justify-between" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}>
+          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)', fontFamily: 'Manrope, sans-serif' }}>Built around established screening instruments</p>
+          <div className="flex flex-wrap items-center gap-3">
+            {['AD8', 'RUDAS', 'PFAQ'].map((c) => <span key={c} className="rounded-full border px-3 py-1 text-xs font-semibold" style={{ borderColor: 'var(--color-border)', color: 'var(--text-primary)' }}>{c}</span>)}
+          </div>
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Transparent scoring â€¢ Evidence references â€¢ Professional review</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -117,7 +130,7 @@ export default function Dashboard() {
                 </tr>
               ))}
               {recent.length === 0 && (
-                <tr><td colSpan={6} className="py-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>No people registered yet.</td></tr>
+                <tr><td colSpan={6} className="py-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>No people registered yet â€” use "New Screening" to add someone.</td></tr>
               )}
             </tbody>
           </table>

@@ -11,6 +11,7 @@ import PersonProfile from './pages/PersonProfile.jsx'
 import ProgressHistory from './pages/ProgressHistory.jsx'
 import FollowUps from './pages/FollowUps.jsx'
 import Analytics from './pages/Analytics.jsx'
+import ClinicalEvidence from './pages/ClinicalEvidence.jsx'
 import Settings from './pages/Settings.jsx'
 import Admin from './pages/Admin.jsx'
 
@@ -52,6 +53,7 @@ export default function App() {
 
       <Route path="/followups" element={<RequireAuth><FollowUps /></RequireAuth>} />
       <Route path="/analytics" element={<RequireAuth><Analytics /></RequireAuth>} />
+      <Route path="/clinical-evidence" element={<RequireAuth><ClinicalEvidence /></RequireAuth>} />
       <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
       <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
 

@@ -8,6 +8,7 @@ const navItems = [
   { id: 'people', to: '/persons', label: 'People', icon: <Icons.Users /> },
   { id: 'follow-ups', to: '/followups', label: 'Follow-ups', icon: <Icons.Calendar /> },
   { id: 'analytics', to: '/analytics', label: 'Analytics', icon: <Icons.BarChart2 /> },
+  { id: 'clinical-evidence', to: '/clinical-evidence', label: 'Clinical Evidence', icon: <Icons.BookOpen /> },
   { id: 'settings', to: '/settings', label: 'Settings', icon: <Icons.Settings /> },
 ]
 

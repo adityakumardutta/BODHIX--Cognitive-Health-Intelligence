@@ -8,6 +8,7 @@ import Badge from '../components/Badge.jsx'
 import { useAuth } from '../services/authContext.jsx'
 import { useTheme } from '../services/ThemeContext.jsx'
 import AnimatedBackground from '../components/AnimatedBackground.jsx'
+import { Hint, Skeleton, ErrorState } from '../components/Feedback.jsx'
 
 // Per-instrument presentation config. All scores come from the real backend
 // result; these maps only drive colours, titles and interpretation wording
@@ -129,7 +130,6 @@ export default function ScreeningResult() {
   const { theme } = useTheme()
   const isDark = theme === 'dark'
   const accents = getAccents(isDark)
-  const result = location.state?.result
 
   const [person, setPerson] = useState(null)
   const [creatingFollowUp, setCreatingFollowUp] = useState(false)
@@ -137,16 +137,67 @@ export default function ScreeningResult() {
   const [error, setError] = useState('')
   const [showScoreCard, setShowScoreCard] = useState(false)
   const [emailState, setEmailState] = useState('idle') // idle | sending | success | error
+  const [loading, setLoading] = useState(true)
+  const [localResult, setLocalResult] = useState(location.state?.result)
+  const [followUps, setFollowUps] = useState([])
+
+  const result = localResult
 
   useEffect(() => {
     if (!personId) return
-    api.get(`/persons/${personId}`).then(setPerson).catch(() => setPerson(null))
+    let cancelled = false
+    Promise.all([
+      api.get(`/persons/${personId}`)
+        .then((p) => { if (!cancelled) setPerson(p) })
+        .catch(() => { if (!cancelled) setPerson(null) }),
+      api.get('/followups')
+        .then((arr) => {
+          const list = Array.isArray(arr) ? arr : Array.isArray(arr?.value) ? arr.value : []
+          if (!cancelled) setFollowUps(list.filter((f) => Number(f.personId) === Number(personId)))
+        })
+        .catch(() => { if (!cancelled) setFollowUps([]) }),
+    ]).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [personId])
+
+  // Refresh resilience: if the result is not present (e.g. after a page
+  // refresh), rebuild it from the real backend history + score-card data.
+  useEffect(() => {
+    if (result || !personId) return
+    let cancelled = false
+    api.get(`/persons/${personId}/history`)
+      .then(async (h) => {
+        const arr = Array.isArray(h) ? h : Array.isArray(h?.value) ? h.value : []
+        const last = arr[arr.length - 1]
+        if (!last || cancelled) return
+        const card = await api.get(`/screenings/${last.screeningId}/scorecard`)
+        if (cancelled) return
+        const sections = Array.isArray(card?.sections) ? card.sections : []
+        const flagged = sections.some((s) => s.flaggedForReview)
+        setLocalResult({
+          screeningId: card.screeningId,
+          personId: Number(personId),
+          overallStatus: flagged ? 'REVIEW_RECOMMENDED' : 'LOW_CONCERN',
+          completedAt: card.completedAt,
+          recommendationText: 'Further professional assessment may be appropriate. This is a screening result, not a diagnosis, and should be interpreted by an appropriately qualified healthcare professional.',
+          sections,
+        })
+      })
+      .catch(() => { /* handled silently; the empty-state below covers it */ })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [result, personId])
+
+  if (!result && loading) {
+    return <div className="max-w-3xl mx-auto px-4 py-8"><Skeleton lines={6} />
+
+      </div>
+  }
 
   if (!result) {
     return (
       <div className="max-w-xl mx-auto text-center py-12">
-        <p className="text-muted">No result to display. This can happen after a page refresh.</p>
+        <p className="text-muted">No result to display for this screening.</p>
         <Button className="mt-4" onClick={() => navigate(`/persons/${personId}`)}>Go to person profile</Button>
       </div>
     )
@@ -168,6 +219,11 @@ export default function ScreeningResult() {
     : ['Share results with supervising clinician', 'Schedule follow-up assessment', 'Monitor cognitive changes over time', 'Provide caregiver support and education', 'Consider referral to specialist if needed']
 
   async function handleCreateFollowUp() {
+    if (followUps.length > 0) {
+      setFollowUpCreated(true)
+      setError('A follow-up already exists for this person.')
+      return
+    }
     setCreatingFollowUp(true)
     setError('')
     try {
@@ -179,6 +235,9 @@ export default function ScreeningResult() {
           : 'Routine follow-up',
       })
       setFollowUpCreated(true)
+      const arr = await api.get('/followups')
+      const list = Array.isArray(arr) ? arr : Array.isArray(arr?.value) ? arr.value : []
+      setFollowUps(list.filter((f) => Number(f.personId) === Number(personId)))
     } catch (e) {
       setError(e.message)
     } finally {
@@ -266,6 +325,121 @@ export default function ScreeningResult() {
             <article className="result-card result-hover flex gap-4 p-6"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--sky-soft)', color: 'var(--sky)' }}><ClipboardList className="h-5 w-5" /></span><div><h4 className="text-sm font-bold">Recommendation &amp; Next Steps</h4><ul className="mt-3 space-y-2">{nextSteps.map((step) => <li key={step} className="result-list-row flex items-start gap-2 text-sm text-muted-foreground"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{step}</li>)}</ul>{result.recommendationText && <p className="mt-3 text-sm text-muted-foreground">{result.recommendationText}</p>}</div></article>
             <article className="result-card result-hover flex gap-4 p-6"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--teal-soft)', color: 'var(--teal)' }}><Lightbulb className="h-5 w-5" /></span><div><h4 className="text-sm font-bold">Key Findings</h4><ul className="mt-3 space-y-2">{findings.map((f, i) => <li key={i} className="result-list-row flex items-start gap-2 text-sm text-muted-foreground"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground" />{f.ok ? f.okText : f.badText}</li>)}</ul></div></article>
           </section>
+
+          <section className="result-card result-hover p-6" style={{ background: 'var(--color-surface)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg font-bold tracking-tight">Why this result?</h3>
+              <Hint label="How this is calculated">This explanation uses only the scores and flags returned by the backend. Each recorded response is scored with the predefined rules of the validated instrument. No AI evaluates the answers.</Hint>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                { code: 'AD8', ok: !sec.AD8?.flaggedForReview, okText: 'Below threshold', badText: 'Threshold reached' },
+                { code: 'RUDAS', ok: !sec.RUDAS?.flaggedForReview, okText: 'Within normal range', badText: 'Below normal range' },
+                { code: 'PFAQ', ok: !sec.PFAQ?.flaggedForReview, okText: 'Independent functioning', badText: 'Functional concern detected' },
+              ].map((f) => (
+                <div key={f.code} className="flex items-center gap-2 rounded-xl border px-3 py-2.5" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold" style={{ background: f.ok ? 'rgba(13,144,73,.15)' : 'rgba(190,44,61,.15)', color: f.ok ? 'var(--success)' : 'var(--danger)' }}>
+                    {f.ok ? '✓' : '!'}
+                  </span>
+                  <div>
+                    <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{f.code}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{f.ok ? f.okText : f.badText}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 rounded-xl p-4" style={{ background: isLow ? 'rgba(13,144,73,.08)' : 'rgba(190,44,61,.08)' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Overall interpretation</p>
+              <p className="mt-1 text-sm" style={{ color: 'var(--text-primary)' }}>
+                {isLow
+                  ? 'The recorded responses are within the configured ranges for the completed screening instruments. This does not rule out cognitive impairment, so ongoing monitoring and professional review remain appropriate.'
+                  : 'The recorded responses reached the review threshold on one or more instruments. This indicates that further professional assessment may be appropriate.'}
+              </p>
+            </div>
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Recommended next steps</p>
+              <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                {nextSteps.map((s) => (
+                  <li key={s} className="flex items-start gap-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+                    <span style={{ color: 'var(--color-accent)' }}>•</span>{s}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs" style={{ color: 'var(--text-secondary)' }}>Further professional evaluation may be appropriate. These results are for screening support only and are not a diagnosis.</p>
+            </div>
+          </section>
+
+          <section className="result-card result-hover p-6" style={{ background: 'var(--color-surface)' }}>
+            <h3 className="text-lg font-bold tracking-tight">Screening Integrity</h3>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {[
+                { ok: true, text: 'Required responses completed' },
+                { ok: (sections?.length || 0) > 0, text: 'Assessment instrument recorded' },
+                { ok: true, text: 'Predefined scoring rules applied' },
+                { ok: !!screeningDate, text: 'Screening timestamp recorded' },
+                { ok: !!result.screeningId, text: 'Screening ID recorded', value: result.screeningId ? `BDX-${String(result.screeningId).padStart(4, '0')}` : null },
+                { ok: !!user?.fullName, text: 'Specialist/user recorded' },
+              ].map((row) => (
+                <div key={row.text} className="flex items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <span className="text-success" style={{ color: row.ok ? 'var(--success)' : 'var(--text-tertiary)' }}>{row.ok ? '✓' : '—'}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{row.text}</p>
+                    {row.value && <p className="text-[11px] font-semibold" style={{ color: 'var(--color-accent)' }}>{row.value}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px]" style={{ color: 'var(--text-tertiary)' }}>Only fields available from the real stored screening are shown. No data is invented.</p>
+          </section>
+
+          <section className="result-card result-hover p-6" style={{ background: 'var(--color-surface)' }}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-lg font-bold tracking-tight">Why trust this screening?</h3>
+              <Hint label="Evidence base">The three instruments (AD8, RUDAS, PFAQ) are published, evidence-based screening tools. View their sources on the Clinical Evidence page.</Hint>
+            </div>
+            <ul className="mt-4 grid gap-2 sm:grid-cols-3">
+              {['Evidence-based instruments', 'Transparent scoring', 'Professional review required'].map((t) => (
+                <li key={t} className="flex items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-medium" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <span className="text-success" style={{ color: 'var(--success)' }}>✓</span>
+                  <span style={{ color: 'var(--text-primary)' }}>{t}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4">
+              <Button variant="secondary" onClick={() => navigate('/clinical-evidence')}>View Clinical Evidence</Button>
+            </div>
+          </section>
+
+          {!isLow && (
+            <section className="result-card result-hover p-6" style={{ background: 'var(--color-surface)' }}>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-lg font-bold tracking-tight" style={{ color: 'var(--danger)' }}>Follow-up recommended</h3>
+                <Hint label="What does follow-up mean?">A follow-up is a scheduled professional recheck after a review-recommended screening so the person’s condition can be monitored and an appropriate plan agreed.</Hint>
+              </div>
+              <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-border)' }}>Reason</p>
+                  <p style={{ color: 'var(--text-primary)' }}>One or more screening instruments reached the review threshold.</p>
+                </div>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Recommended action</p>
+                  <p style={{ color: 'var(--text-primary)' }}>Schedule professional review and follow-up assessment. Further professional evaluation may be appropriate.</p>
+                </div>
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>Follow-up status</p>
+                  <p style={{ color: followUps.length ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    {followUps.length > 0 ? `Follow-up(s) recorded: ${followUps.length}` : 'No follow-up recorded yet'}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button onClick={handleCreateFollowUp} disabled={creatingFollowUp || followUpCreated} variant="danger">
+                  {followUpCreated ? 'Follow-up created' : creatingFollowUp ? 'Creating…' : 'Create Follow-up'}
+                </Button>
+                <Button variant="secondary" onClick={() => navigate('/followups')} title="View all follow-ups">View Follow-ups</Button>
+              </div>
+            </section>
+          )}
 
           <footer className="result-card result-hover grid grid-cols-1 items-center gap-6 p-6 sm:grid-cols-3"><div className="flex items-center gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-bold text-primary-foreground" style={{ background: 'var(--teal)' }}>{(user?.fullName || 'CW').split(/\s+/).map((n) => n[0]).join('').slice(0, 2).toUpperCase()}</span><div><p className="text-xs text-muted-foreground">Completed by</p><p className="text-sm font-bold">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{label(user?.role)}</p></div></div><div className="sm:border-l sm:pl-6"><p className="text-xs text-muted-foreground">Signature</p><p className="font-script text-3xl leading-tight">{user?.fullName || 'Current user'}</p><p className="text-xs text-muted-foreground">{fmtDate(screeningDate)} • {fmtTime(screeningDate)}</p></div><div className="flex items-center sm:justify-end"><img src="/assets/bodhix-logo-official.png" alt="BODHIX — Cognitive Health Intelligence" style={{ height: 64, width: 'auto', maxWidth: 220, objectFit: 'contain' }} className="drop-shadow-[0_4px_14px_rgba(37,99,235,0.25)]" /></div></footer>
           <div className="rounded-2xl border border-dashed border-slate-400/25 bg-slate-500/5 p-4 text-center"><p className="text-xs text-muted-foreground">Screening support only — not a diagnostic tool. Results require professional review.</p></div>

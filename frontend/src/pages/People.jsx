@@ -6,8 +6,8 @@ import { StatusBadge } from '../components/Badge.jsx'
 import { Icons } from '../components/Icons.jsx'
 
 function personName(p) { return p.name || p.fullName || 'Unnamed' }
-function personAge(p) { return p.age ?? p.ageYears ?? '—' }
-function personLocation(p) { return p.location || p.district || p.region || '—' }
+function personAge(p) { return p.age ?? p.ageYears ?? 'ï¿½' }
+function personLocation(p) { return p.location || p.district || p.region || 'ï¿½' }
 function personLastScreening(p) {
   const v = p.lastScreening || p.lastScreeningDate || p.lastScreenedAt
   return v ? String(v).slice(0, 10) : 'Not screened'
@@ -142,7 +142,12 @@ export default function People() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="py-6 text-sm" style={{ color: 'var(--text-tertiary)' }}>No matching people.</td></tr>
+                <tr><td colSpan={6} className="py-10 text-center">
+                    <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>{people.length === 0 ? 'No screenings recorded yet.' : 'No matching people for this search.'}</p>
+                    {people.length === 0 && (
+                      <Link to="/persons/new" className="btn-primary inline-flex items-center gap-2 mt-3 px-4 py-2.5 rounded-xl text-sm font-semibold"><Icons.Plus /> Start New Screening</Link>
+                    )}
+                  </td></tr>
               )}
             </tbody>
           </table>

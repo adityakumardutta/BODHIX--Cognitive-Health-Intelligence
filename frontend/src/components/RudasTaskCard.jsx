@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import Button from './Button.jsx'
 import ProgressBar from './ProgressBar.jsx'
+import ProvenanceBadge from './ProvenanceBadge.jsx'
 
 // RUDAS-specific task card. Each of the 6 validated items uses its own
 // interaction (widget selected from the backend options_json metadata).
 // Scoring is numeric and sent up via onChange(valueString); the backend is
 // the single source of truth for the resulting RUDAS total /30.
 export default function RudasTaskCard({
-  sectionName, current, total, question, value, onChange, onBack, onNext, isLast, backDisabled = false,
+  sectionName, current, total, question, value, onChange, onBack, onNext, isLast, backDisabled = false, instrument,
 }) {
   let meta = {}
   try {
@@ -18,6 +19,7 @@ export default function RudasTaskCard({
   return (
     <div className="glass-pop rounded-2xl p-6 max-w-2xl mx-auto shadow-glow">
       <p className="text-xs uppercase tracking-wide text-muted mb-2">{sectionName}</p>
+      <ProvenanceBadge instrument={instrument} sectionName={sectionName} />
       <ProgressBar value={current} max={total} label={`Question ${current} of ${total}`} />
 
       <div className="mt-5 flex items-baseline justify-between">

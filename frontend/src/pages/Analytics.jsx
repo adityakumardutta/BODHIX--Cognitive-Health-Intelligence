@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { api } from "../services/api.js"
 import StatCard from "../components/StatCard.jsx"
 import { Icons } from "../components/Icons.jsx"
+import { Skeleton, ErrorState } from "../components/Feedback.jsx"
 
 /* ── helpers ─────────────────────────────────────────────── */
 const asArr = (d) => (Array.isArray(d) ? d : Array.isArray(d?.value) ? d.value : [])
@@ -231,8 +232,8 @@ export default function Analytics() {
   const riskData = useMemo(() => { const dist = data?.resultDistribution || {}; return [{ name: "Low Concern", value: dist.LOW_CONCERN ?? 0, color: "#0d9488" }, { name: "Review Recommended", value: dist.REVIEW_RECOMMENDED ?? 0, color: "#ef4444" }] }, [data])
   const followupData = useMemo(() => { const count = (s) => followUps.filter((f) => f.status === s).length; return [{ label: "Completed", value: count("COMPLETED"), color: "#0d9488" }, { label: "Upcoming", value: count("PENDING"), color: "#3b82f6" }, { label: "Overdue", value: count("OVERDUE"), color: "#ef4444" }] }, [followUps])
 
-  if (error) return <p className="text-sm text-warning">{error}</p>
-  if (!data) return <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Loading…</p>
+  if (error) return <div className="an-page p-6"><ErrorState title="Unable to load analytics" onRetry={() => window.location.reload()} /></div>
+  if (!data) return <div className="an-page p-6"><Skeleton lines={6} /></div>
   const flaggedTotal = riskData[1].value
 
   return (

@@ -4,6 +4,7 @@ import GlassCard from '../components/GlassCard.jsx'
 import StatusBadge from '../components/Badge.jsx'
 import PriorityList from '../components/PriorityList.jsx'
 import FollowUpCard from '../components/FollowUpCard.jsx'
+import { EmptyState } from '../components/Feedback.jsx'
 
 export default function FollowUps() {
   const [priority, setPriority] = useState([])
@@ -74,7 +75,9 @@ export default function FollowUps() {
           {followUps.map((f) => (
             <FollowUpCard key={f.id} followUp={f} onUpdateStatus={updateStatus} />
           ))}
-          {followUps.length === 0 && <p className="text-xs text-muted/70">No follow-ups yet.</p>}
+          {followUps.length === 0 && (
+            <EmptyState title="No follow-ups yet." description="Follow-ups appear here after a screening that recommends professional review." />
+          )}
         </div>
       </GlassCard>
     </div>
