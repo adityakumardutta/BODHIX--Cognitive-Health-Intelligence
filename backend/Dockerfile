@@ -29,16 +29,21 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=build /workspace/app.jar app.jar
 
 # Spring Boot / Render
-# Render (and most cloud platforms) inject PORT; default to 8080 for local runs.
-ENV PORT=8080
-EXPOSE ${PORT}
+# The app binds to 0.0.0.0 and reads the port from the PORT environment variable
+# (falling back to 8081 for local runs) via application.properties. Render injects
+# its own PORT at runtime, which overrides any default here.
+# EXPOSE is documentation only and does NOT affect Render's dynamic PORT binding.
+EXPOSE 8081
 
 # Drop to non-root user
 USER appuser
 
-# Run the Spring Boot jar. --server.port picks up $PORT at runtime.
+# Run the Spring Boot jar. The server port is resolved from the PORT environment
+# variable by application.properties (server.port=${PORT:8081}), so no fixed port
+# is hardcoded here and Render's dynamic PORT reaches Spring Boot automatically.
+# NOTE: exec-form ENTRYPOINT does not expand "$PORT", so we rely on Spring Boot's
+# own environment-variable resolution instead of passing --server.port.
 ENTRYPOINT ["java", \
   "-XX:+UseContainerSupport", \
   "-XX:MaxRAMPercentage=75.0", \
-  "-jar", "app.jar", \
-  "--server.port=${PORT}"]
+  "-jar", "app.jar"]

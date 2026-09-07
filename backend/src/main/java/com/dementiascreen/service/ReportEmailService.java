@@ -19,16 +19,11 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.mail.MailException;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import jakarta.mail.internet.MimeMessage;
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.time.format.DateTimeFormatter;
@@ -37,8 +32,12 @@ import java.util.List;
 /**
  * Builds the REAL screening evaluation report PDF (same backend data as the
  * score-card API) and emails it to the CURRENT authenticated specialist's
- * registered email address. Credentials come exclusively from environment
- * variables (MAIL_HOST / MAIL_PORT / MAIL_USERNAME / MAIL_PASSWORD / MAIL_FROM).
+ * registered email address.
+ *
+ * <p>Email transport is abstracted behind {@link EmailSender} so the same
+ * behavior (real specialist email, exact subject, real PDF attachment, honest
+ * success/failure) works over SMTP locally and over an HTTPS email API
+ * (Resend) in production on Render, which blocks outbound SMTP.
  */
 @Service
 public class ReportEmailService {
@@ -50,23 +49,14 @@ public class ReportEmailService {
 
     private final ScreeningScoringService scoringService;
     private final PersonRepository personRepository;
-    private final JavaMailSender mailSender;
-
-    @Value("${spring.mail.host:}")
-    private String mailHost;
-
-    @Value("${app.mail.from:}")
-    private String mailFrom;
-
-    @Value("${spring.mail.username:}")
-    private String mailUsername;
+    private final EmailSender emailSender;
 
     public ReportEmailService(ScreeningScoringService scoringService,
                               PersonRepository personRepository,
-                              JavaMailSender mailSender) {
+                              EmailSender emailSender) {
         this.scoringService = scoringService;
         this.personRepository = personRepository;
-        this.mailSender = mailSender;
+        this.emailSender = emailSender;
     }
 
     /** Sends the real evaluation report PDF to the specialist's registered email. */
@@ -74,32 +64,22 @@ public class ReportEmailService {
         if (specialist == null || specialist.getEmail() == null || specialist.getEmail().isBlank()) {
             throw new BadRequestException("Specialist email address is missing");
         }
-        if (mailHost == null || mailHost.isBlank() || mailUsername == null || mailUsername.isBlank() || mailFrom == null || mailFrom.isBlank()) {
-            throw new EmailDeliveryException("Email sending is not configured on this server");
-        }
         Person person = loadPersonForScreening(screeningId);
         byte[] pdf = buildReportPdf(screeningId, specialist);
 
+        String subject = person.getFullName() + " -- evaluation report";
+        String body = "BODHIX\n\n"
+                + "Please find the attached cognitive screening evaluation report.\n\n"
+                + "Regards,\n"
+                + "BODHIX\n"
+                + "Cognitive Health Intelligence";
+        String attachmentName = "BODHIX-Screening-Report-" + screeningId + ".pdf";
+
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-            helper.setFrom(mailFrom);
-            helper.setTo(specialist.getEmail());
-            helper.setSubject(person.getFullName() + " -- evaluation report");
-            helper.setText(
-                    "BODHIX\n\n"
-                    + "Please find the attached cognitive screening evaluation report.\n\n"
-                    + "Regards,\n"
-                    + "BODHIX\n"
-                    + "Cognitive Health Intelligence");
-            helper.addAttachment("BODHIX-Screening-Report-" + screeningId + ".pdf",
-                    new org.springframework.core.io.ByteArrayResource(pdf));
-            mailSender.send(message);
+            emailSender.sendEmailWithAttachment(
+                    specialist.getEmail(), subject, body, pdf, attachmentName);
         } catch (BadRequestException | ResourceNotFoundException | EmailDeliveryException e) {
             throw e;
-        } catch (MailException | jakarta.mail.MessagingException e) {
-            log.error("Failed to send report email for screening {}: {}", screeningId, e.getMessage());
-            throw new EmailDeliveryException("Unable to send the report. Please try again.");
         } catch (Exception e) {
             log.error("Unexpected error preparing report email for screening {}: {}", screeningId, e.getMessage());
             throw new EmailDeliveryException("Unable to send the report. Please try again.");
