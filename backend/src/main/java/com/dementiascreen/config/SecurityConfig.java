@@ -75,17 +75,27 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
+        // Allowed origins come ENTIRELY from the CORS_ALLOWED_ORIGINS environment
+        // variable (surfaced here via app.cors.allowed-origins). Exact origins
+        // only - no wildcard "*", no hardcoded localhost origins in code.
+        // Local development uses the default placeholders in application.properties;
+        // production sets CORS_ALLOWED_ORIGINS to the exact frontend origin,
+        // e.g. https://bodhix-cognitive-health-intelligence-faca-ljqqykkav.vercel.app
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toList());
         configuration.setAllowedOrigins(origins);
-        configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost:[*]",
-            "http://127.0.0.1:[*]"
-        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        // Explicit allow-list (no wildcard). Must cover the preflight-requested
+        // headers the browser sends for authenticated calls.
+        configuration.setAllowedHeaders(List.of(
+                "Content-Type",
+                "Authorization",
+                "Accept",
+                "Origin",
+                "X-Requested-With"
+        ));
         configuration.setExposedHeaders(List.of("Authorization", "Content-Type"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
