@@ -3,7 +3,7 @@
 // it to every request. Throws a normalized Error with a friendly message on
 // non-2xx responses so components can show it directly to the user.
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8081/api'
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api'
 
 function getToken() {
   return localStorage.getItem('ds_token')

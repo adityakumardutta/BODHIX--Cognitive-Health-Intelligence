@@ -1,5 +1,24 @@
 // Firebase Web SDK (modular). Web config only — NO Admin/service-account
 // credentials or private keys are ever placed here or in VITE variables.
+//
+// ────────────────────────────────────────────────────────────────────────────
+// FIREBASE AUTHORIZED DOMAINS (OAuth "This domain isn't authorized" error)
+// ────────────────────────────────────────────────────────────────────────────
+// Google/OAuth sign-in requires every domain the browser runs on to be listed
+// under Firebase Console → Project settings (BODHIX) → Your apps → «Authorized
+// domains». This is a Firebase console setting, NOT code — do not put domain
+// values or secrets here.
+//
+// Required production entry (add this exact origin to Authorized domains):
+//   https://bodhix-cognitive-health-intelligence-faca-ljqqykkav.vercel.app
+//
+// Keep the local/preview development origins registered too, e.g.:
+//   http://localhost:5173
+//   http://localhost:5174
+//
+// If Google sign-in returns "This domain (…) isn't authorized for Firebase
+// OAuth", the current origin is missing from Authorized domains in the console.
+// ────────────────────────────────────────────────────────────────────────────
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 
