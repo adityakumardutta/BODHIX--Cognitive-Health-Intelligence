@@ -86,6 +86,8 @@ CREATE TABLE questions (
     prompt_text         TEXT NOT NULL,
     response_type       ENUM('YES_NO','MULTIPLE_CHOICE','NUMERIC','TASK_SCORE') NOT NULL,
     options_json        JSON NULL,          -- for MULTIPLE_CHOICE/YES_NO option -> score mapping
+    helper_text         VARCHAR(255) NULL,
+    example_text        VARCHAR(255) NULL,
     max_item_score      DECIMAL(6,2) NOT NULL,
     is_placeholder       BOOLEAN NOT NULL DEFAULT TRUE, -- true until real validated wording is inserted
     CONSTRAINT fk_question_section FOREIGN KEY (section_id) REFERENCES assessment_sections(id) ON DELETE CASCADE,
