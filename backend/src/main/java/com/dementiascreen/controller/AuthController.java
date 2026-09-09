@@ -1,7 +1,5 @@
 package com.dementiascreen.controller;
 
-import com.dementiascreen.dto.FirebaseAuthRequest;
-import com.dementiascreen.dto.GoogleAuthRequest;
 import com.dementiascreen.dto.LoginRequest;
 import com.dementiascreen.dto.LoginResponse;
 import com.dementiascreen.service.AuthService;
@@ -23,14 +21,13 @@ public class AuthController {
         return authService.login(request);
     }
 
-    @PostMapping("/google")
-    public LoginResponse google(@Valid @RequestBody GoogleAuthRequest request) {
-        return authService.googleLogin(request);
-    }
-
-    /** Firebase Google sign-in: verifies the ID token server-side, then issues the normal BODHIX JWT. */
-    @PostMapping("/firebase")
-    public LoginResponse firebase(@Valid @RequestBody FirebaseAuthRequest request) {
-        return authService.firebaseLogin(request);
+    /**
+     * Guest Login: authenticates the dedicated guest/demo account server-side
+     * and issues the NORMAL backend JWT (role HEALTH_WORKER). No passwords or
+     * tokens are hardcoded in the frontend and no authentication is bypassed.
+     */
+    @PostMapping("/guest")
+    public LoginResponse guest() {
+        return authService.guestLogin();
     }
 }

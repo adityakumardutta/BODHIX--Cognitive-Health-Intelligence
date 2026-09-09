@@ -5,6 +5,7 @@ import com.dementiascreen.dto.ScreeningResultResponse;
 import com.dementiascreen.dto.ScreeningSubmitRequest;
 import com.dementiascreen.entity.Question;
 import com.dementiascreen.entity.User;
+import com.dementiascreen.exception.BadRequestException;
 import com.dementiascreen.service.QuestionService;
 import com.dementiascreen.service.ReportEmailService;
 import com.dementiascreen.service.ScreeningScoringService;
@@ -71,6 +72,12 @@ public class ScreeningController {
                 result.setEmailSent(true);
                 result.setEmailRecipient(user.getEmail());
                 log.info("Auto-sent report email for screening {} to {}", result.getScreeningId(), user.getEmail());
+            } catch (BadRequestException e) {
+                // Clean refusal (e.g. the guest account has no usable email):
+                // surface the friendly message without failing the submission.
+                result.setEmailSent(false);
+                result.setEmailError(e.getMessage());
+                log.info("Report email not sent for screening {}: {}", result.getScreeningId(), e.getMessage());
             } catch (Exception e) {
                 // Email failure should not fail the screening submission
                 result.setEmailSent(false);

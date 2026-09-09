@@ -51,8 +51,22 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .headers(headers -> headers
-                 // Hardened response headers for the API (do not break JSON/PDF downloads).
-                 .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
+                 // Single-deployment: Spring Security headers now apply to BOTH
+                 // the API responses AND the React SPA served from /static.
+                 // The previous default-src 'none' policy (tuned for pure JSON
+                 // responses) would block the SPA's own script/CSS and the
+                 // inline theme bootstrap in index.html. The policy below stays
+                 // strict: same-origin assets only, NO third-party scripts, no
+                 // framing. Google Fonts remain allowed (UI typography);
+                 // Google/Firebase AUTH endpoints were removed with Google login.
+                 .contentSecurityPolicy(csp -> csp.policyDirectives(
+                     "default-src 'self'; " +
+                     "script-src 'self' 'unsafe-inline'; " +              // 'unsafe-inline': existing inline theme <script> in index.html (unchanged UI)
+                     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + // existing Google Fonts stylesheet
+                     "font-src 'self' data: https://fonts.gstatic.com; " + // existing Google Fonts files
+                     "img-src 'self' data: blob:; " +
+                     "connect-src 'self'; " +                             // same-origin API only (no third-party auth endpoints)
+                     "frame-ancestors 'none'"))
                  .frameOptions(frame -> frame.deny())
                  .referrerPolicy(referrer -> referrer.policy(
                      org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
@@ -64,8 +78,15 @@ public class SecurityConfig {
              )
             .authorizeHttpRequests(auth -> auth
                  .requestMatchers("/api/auth/**").permitAll()
-                 .requestMatchers("/", "/error", "/actuator/health", "/actuator/info").permitAll()
-                 .anyRequest().authenticated()
+                 // Single-deployment: ALL other /api/** endpoints still require
+                 // JWT authentication — API security is completely unchanged.
+                 .requestMatchers("/api/**").authenticated()
+                 // Everything else is the React SPA / static assets served by
+                 // Spring Boot from classpath:/static (index.html, /assets/**,
+                 // /favicon.png, SPA deep links via SpaWebConfig). These carry
+                 // no privileged data (the SPA fetches /api/** with the JWT),
+                 // so they are publicly reachable like any static site.
+                 .anyRequest().permitAll()
              )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 

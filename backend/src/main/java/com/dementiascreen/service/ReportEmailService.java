@@ -19,6 +19,7 @@ import com.lowagie.text.Phrase;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,10 @@ public class ReportEmailService {
     private final PersonRepository personRepository;
     private final EmailSender emailSender;
 
+    /** The dedicated guest account (no usable email) — email reports are refused for it. */
+    @Value("${app.guest.email:worker1@dementiascreen.demo}")
+    private String guestEmail;
+
     public ReportEmailService(ScreeningScoringService scoringService,
                               PersonRepository personRepository,
                               EmailSender emailSender) {
@@ -63,6 +68,12 @@ public class ReportEmailService {
     public void emailReportToSpecialist(Long screeningId, User specialist) {
         if (specialist == null || specialist.getEmail() == null || specialist.getEmail().isBlank()) {
             throw new BadRequestException("Specialist email address is missing");
+        }
+        // Guest account has no usable email address: refuse cleanly BEFORE any
+        // PDF/SMTP/API work. Non-sensitive message, shown as-is by the frontend.
+        if (guestEmail != null && guestEmail.trim().equalsIgnoreCase(specialist.getEmail())) {
+            log.info("Refused report email for the guest account (screening {})", screeningId);
+            throw new BadRequestException("Please log in with your email account to use Email Report.");
         }
         Person person = loadPersonForScreening(screeningId);
         byte[] pdf = buildReportPdf(screeningId, specialist);

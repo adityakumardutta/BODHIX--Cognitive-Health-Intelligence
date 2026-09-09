@@ -271,6 +271,17 @@ export default function ScreeningResult() {
   // screening data and emails it to the current specialist's registered email.
   async function handleEmailReport() {
     if (emailState === 'sending') return
+    // Guest sessions have NO usable email address: never call the email API.
+    // Determined from the authenticated-user state (isGuest / no email), not
+    // from any display name.
+    if (user?.isGuest || !user?.email) {
+      showToast(
+        'Please log in with your email account to use Email Report.',
+        'Guest accounts cannot receive report emails.',
+        'info'
+      )
+      return
+    }
     setEmailState('sending')
     try {
       await api.post(`/screenings/${result.screeningId}/email-report`)

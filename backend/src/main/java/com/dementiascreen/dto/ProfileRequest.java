@@ -3,7 +3,7 @@ package com.dementiascreen.dto;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-/** Specialist details captured after login (normal or Google). */
+/** Specialist details captured after login (normal email/password login). */
 @Data
 public class ProfileRequest {
     @NotBlank

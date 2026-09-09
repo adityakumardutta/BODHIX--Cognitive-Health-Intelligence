@@ -22,7 +22,9 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const res = await api.post('/auth/login', { email, password })
     localStorage.setItem('ds_token', res.token)
-    const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role }
+    // Guest accounts are recognized by having NO email in the auth response
+    // (the backend returns email: null for the guest session) — never by name.
+    const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role, isGuest: !res.email }
     localStorage.setItem('ds_user', JSON.stringify(userInfo))
     setUser(userInfo)
     return userInfo
@@ -37,9 +39,12 @@ export function AuthProvider({ children }) {
         ...(prev || {}),
         id: res.userId,
         fullName: res.fullName,
-        email: res.email,
+        // Preserve the guest identity: a guest session never gains an email,
+        // even after a profile update on the shared guest account.
+        email: prev?.isGuest ? null : res.email,
         role: res.role,
         specialization: res.specialization,
+        isGuest: !!prev?.isGuest,
       }
       localStorage.setItem('ds_user', JSON.stringify(next))
       return next
@@ -47,13 +52,16 @@ export function AuthProvider({ children }) {
     return res
   }
 
-  // Google sign-in: sends the Firebase ID token + profile name to the real
-  // backend /auth/firebase endpoint, which verifies the token server-side and
-  // returns the normal BODHIX JWT. Role always comes from the backend.
-  async function googleLogin(idToken, name) {
-    const res = await api.post('/auth/firebase', { idToken, name })
+  // Guest Login: asks the real backend for a guest session. The backend
+  // authenticates its dedicated guest/demo account server-side and returns
+  // the NORMAL BODHIX JWT — same token, same role claims, same authorization
+  // as email/password login. No token or password is hardcoded client-side.
+  async function guestLogin() {
+    const res = await api.post('/auth/guest')
     localStorage.setItem('ds_token', res.token)
-    const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role }
+    // Guest session: the backend returns fullName "Guest" and NO email
+    // (email: null) — the guest has no usable email address by design.
+    const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role, isGuest: true }
     localStorage.setItem('ds_user', JSON.stringify(userInfo))
     setUser(userInfo)
     return userInfo
@@ -66,7 +74,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, googleLogin, updateProfile, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, guestLogin, updateProfile, logout }}>
       {children}
     </AuthContext.Provider>
   )
