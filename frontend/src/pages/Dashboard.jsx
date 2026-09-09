@@ -471,7 +471,10 @@ export default function Dashboard() {
             "
           />
 
-          <div className="relative grid items-center gap-6 lg:grid-cols-[1fr_auto_auto_auto]">
+          {/* Responsive: stack below xl so the fixed-width hero companions
+              (trust points / skull / today card) never squeeze the greeting.
+              At xl+ the layout is identical to the previous lg+ design. */}
+          <div className="relative grid grid-cols-1 items-center gap-6 xl:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
 
             {/* LEFT — GREETING */}
             <div className="min-w-0">
@@ -524,7 +527,7 @@ export default function Dashboard() {
             </div>
 
             {/* MIDDLE — TRUST POINTS */}
-            <div className="hidden min-w-[150px] gap-3 lg:flex lg:flex-col">
+            <div className="hidden min-w-[150px] gap-3 xl:flex xl:flex-col">
 
               <div className="flex items-center gap-3 text-sm font-semibold text-slate-600">
                 <span className="grid h-9 w-9 place-items-center rounded-xl bg-blue-50 text-blue-600">
@@ -550,7 +553,7 @@ export default function Dashboard() {
             </div>
 
             {/* BRAIN IMAGE */}
-            <div className="relative hidden h-[190px] w-[215px] overflow-hidden lg:block">
+            <div className="relative hidden h-[190px] w-[215px] overflow-hidden xl:block">
 
               {/* soft glow */}
               <div
@@ -578,13 +581,14 @@ export default function Dashboard() {
             {/* RIGHT — TODAY / ROLE */}
             <div
               className="
-                min-w-[225px]
+                w-full
                 rounded-[20px]
                 border border-[rgba(148,174,212,0.40)]
                 bg-white/90
                 p-4
                 shadow-sm
                 backdrop-blur-xl
+                xl:w-auto xl:min-w-[225px]
               "
             >
 
