@@ -31,9 +31,13 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-3">
-          <img
+                    <img
             src="/assets/bodhix-logo-full.png"
             alt="BODHIX — Cognitive Health Intelligence"
+            width="144"
+            height="96"
+            loading="eager"
+            fetchpriority="high"
             style={{ height: 96, width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
           />
         </div>

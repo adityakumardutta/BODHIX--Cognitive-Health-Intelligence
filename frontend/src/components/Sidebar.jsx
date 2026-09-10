@@ -32,10 +32,14 @@ export default function Sidebar() {
     <aside className="glass-sidebar flex flex-col flex-shrink-0 h-full" style={{ width: 248, padding: 18 }}>
       {/* Branding — the logo image already contains BODHIX + tagline, no text below */}
       <div className="flex flex-col items-center text-center px-1 pb-2">
-        <img
+                <img
           src="/assets/bodhix-logo-full.png"
           alt="BODHIX — Cognitive Health Intelligence"
+          width="198"
+          height="132"
           className="brand-logo-emblem"
+          loading="eager"
+          fetchpriority="high"
           style={{ height: 132, width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
         />
       </div>

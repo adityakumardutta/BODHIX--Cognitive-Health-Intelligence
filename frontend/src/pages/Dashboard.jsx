@@ -565,9 +565,13 @@ export default function Dashboard() {
                 "
               />
 
-              <img
+                            <img
                 src={skullImg}
                 alt="BODHIX skull illustration"
+                width="215"
+                height="190"
+                loading="eager"
+                fetchpriority="high"
                 className="
                   relative z-10
                   h-full w-full

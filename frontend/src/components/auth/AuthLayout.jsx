@@ -51,9 +51,12 @@ export default function AuthLayout({ children, isRotating = false }) {
             <img
               src="/assets/bodhix-logo-full.png"
               alt="BODHIX — Cognitive Health Intelligence"
+              width="165"
+              height="110"
               style={{ height: 110, width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
               className="drop-shadow-[0_10px_24px_rgba(99,102,241,0.35)]"
               loading="eager"
+              fetchpriority="high"
             />
           </div>
 

@@ -40,7 +40,7 @@ export default function Layout({ children }) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M4 6h16M4 12h16M4 18h16" />
           </svg>
-          <img src="/assets/bodhix-logo-full.png" alt="BODHIX" style={{ height: 26, width: 'auto', objectFit: 'contain' }} className="ml-3" />
+                    <img src="/assets/bodhix-logo-full.png" alt="BODHIX" width="39" height="26" style={{ height: 26, width: 'auto', objectFit: 'contain' }} className="ml-3" />
         </button>
 
         {!hideNavbar && <Navbar />}
