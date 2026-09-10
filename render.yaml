@@ -1,0 +1,88 @@
+# ============================================================================
+# BODHIX — Render Blueprint for the SINGLE-DEPLOYMENT service
+# (React/Vite frontend + Spring Boot backend in ONE container, ONE URL)
+# ============================================================================
+# This defines a SEPARATE Render Web Service. The existing Render backend
+# service (backend/Dockerfile) is NOT touched by this file.
+#
+# Deploy with this file:
+#   Render Dashboard -> New + -> Blueprint -> select repository
+#   adityakumardutta/BODHIX--Cognitive-Health-Intelligence, branch: main
+#
+# Service settings enforced by this blueprint:
+#   Runtime:      Docker
+#   Dockerfile:   ./Dockerfile  (root-level — builds frontend, then embeds
+#                  frontend/dist into the Spring Boot jar; serves UI at /
+#                  and API at /api/*)
+#   Root dir:     repository root (do NOT set frontend or backend)
+#
+# SECRETS: every secret is declared with sync: false — the value is NOT in
+# source code and must be filled in once in the Render Dashboard
+# (Service -> Environment) using the existing production values from
+# backend/.env. Render also injects PORT automatically; Spring Boot reads
+# it via server.port=${PORT:8081} (application.properties, unchanged).
+# ============================================================================
+
+services:
+  - type: web
+    name: bodhix-single
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter            # adjust if you need a different instance size
+    region: singapore        # closest region to ap-south-1 Supabase pooler
+    # No healthCheckPath needed: / serves the React app (200). If you prefer
+    # a dedicated check, add e.g. healthCheckPath: / after deployment.
+    autoDeploy: true
+
+    envVars:
+      # ---- Database (Supabase PostgreSQL — SESSION POOLER) — SECRET values ----
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      # HikariCP — sized under the Supabase session-pooler 15-client cap
+      - key: DB_POOL_MAX_SIZE
+        value: "5"
+      - key: DB_POOL_MIN_IDLE
+        value: "1"
+
+      # ---- JWT ----
+      - key: JWT_SECRET
+        sync: false
+
+      # ---- Guest Login (dedicated demo account; must have role HEALTH_WORKER) ----
+      # Created automatically at startup if missing. Internal identifier only —
+      # the guest has no usable email address.
+      - key: GUEST_EMAIL
+        value: guest@bodhix.demo
+
+      # ---- Email (SMTP) ----
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+
+      # ---- Email (Resend HTTPS API) ----
+      - key: RESEND_API_KEY
+        sync: false
+
+      # ---- CORS ----
+      # After the FIRST deploy, Render assigns the URL. Set this in the
+      # dashboard to the new service's exact origin:
+      #   https://<new-service-name>.onrender.com
+      # Same-origin SPA calls never trigger CORS, so this is a safety net.
+      # Keep the current value(s) if you still use the old deployment.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

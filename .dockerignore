@@ -1,0 +1,17 @@
+# Keep the Docker build context minimal (build context = repository root)
+**/node_modules
+**/target
+**/dist
+**/.git
+**/.env
+**/.env.local
+**/*.log
+*.err
+backend/*.log
+backend/*.err
+backend/backend-run.log
+frontend/vite-dev.log
+frontend/vite.config.js.timestamp-*.mjs
+High-fidelity UI Design
+backend-backup-before-supabase
+database

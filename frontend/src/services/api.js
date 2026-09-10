@@ -3,7 +3,13 @@
 // it to every request. Throws a normalized Error with a friendly message on
 // non-2xx responses so components can show it directly to the user.
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api'
+// Single-deployment: production builds are served by Spring Boot itself, so
+// the API is SAME-ORIGIN (/api) — no cross-origin URL, no CORS involved.
+// Local development (vite dev server) keeps the direct localhost backend.
+// An explicit VITE_API_URL still wins if ever needed (no secrets here —
+// it is a public path/URL, never credentials).
+const BASE_URL = import.meta.env.VITE_API_URL
+  || (import.meta.env.PROD ? '/api' : 'http://localhost:8081/api')
 
 function getToken() {
   return localStorage.getItem('ds_token')
