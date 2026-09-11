@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -79,10 +80,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    /** Dedicated guest/demo account used by the Guest Login option (HEALTH_WORKER only). */
-    @Value("${app.guest.email:worker1@dementiascreen.demo}")
-    private String guestEmail;
-
     public AuthService(UserRepository userRepository, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
@@ -130,46 +127,46 @@ public class AuthService {
     }
 
     /**
-     * Guest Login. Authenticates the dedicated guest/demo account
-     * (email via app.guest.email / GUEST_EMAIL, defaulting to the seeded
-     * worker1@dementiascreen.demo demo account) and issues the NORMAL
-     * backend JWT — the same JwtService, same claims, same authorization
-     * as any other login. No authentication is bypassed.
+     * Guest Login. Creates a NEW temporary guest user for EACH guest session,
+     * so guest data is fully isolated between sessions and never shared.
      *
-     * Hard safety rules:
-     *  - the guest account MUST have role HEALTH_WORKER (no admin takeover);
-     *  - the account must be active;
-     *  - no password is involved: the account password is only ever stored
-     *    as a bcrypt hash (seed.sql) and is never exposed to the frontend.
+     * Each temporary guest account:
+     *  - gets a unique session_id (UUID) and a unique email (unused, unguessable)
+     *  - is marked is_temporary = true with an expires_at timestamp
+     *  - receives the NORMAL backend JWT (same JwtService, same claims, same role)
+     *  - has a random bcrypt password (never used, never exposed)
+     *
+     * A scheduled cleanup job removes expired temporary users and cascades
+     * their data (persons, screenings, results, history, follow-ups) via
+     * ON DELETE CASCADE. Guest data lives only for the session lifetime.
+     *
+     * No plaintext password exists in source code or configuration.
      */
     public LoginResponse guestLogin() {
-        String email = guestEmail != null ? guestEmail.trim() : "";
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .or(() -> userRepository.findByEmail(email))
-                .orElseThrow(() -> {
-                    logSecurityEvent("Guest login attempted but guest account is missing", email);
-                    return new UnauthorizedException("Guest access is not available on this server");
-                });
+        String sessionId = UUID.randomUUID().toString();
+        String guestEmail = "guest-" + sessionId + "@temporary.bodhix";
 
-        if (user.getRole() != User.Role.HEALTH_WORKER) {
-            logSecurityEvent("Rejected guest login for non-HEALTH_WORKER account", user.getEmail());
-            throw new UnauthorizedException("Guest access is not available on this server");
-        }
+        // Create an isolated temporary user for this guest session
+        User guestUser = User.builder()
+                .email(guestEmail)
+                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .fullName("Guest")
+                .role(User.Role.HEALTH_WORKER)
+                .isActive(true)
+                .isTemporary(true)
+                .sessionId(sessionId)
+                .expiresAt(LocalDateTime.now().plusHours(24))
+                .build();
+        userRepository.save(guestUser);
 
-        if (user.getIsActive() != null && !user.getIsActive()) {
-            logSecurityEvent("Guest login attempted for deactivated account", user.getEmail());
-            throw new UnauthorizedException("Guest access is not available on this server");
-        }
-
-        logSecurityEvent("Guest login", user.getEmail());
-        String token = jwtService.generateToken(user.getEmail(), user.getId(), user.getRole().name());
+        logSecurityEvent("Guest login (temporary session: " + sessionId + ")", guestEmail);
+        String token = jwtService.generateToken(guestUser.getEmail(), guestUser.getId(), guestUser.getRole().name());
         // Guest display identity: name is exactly "Guest" and the session has
-        // NO usable email address. The shared demo account's real email stays
-        // in the database ONLY as the server-side identifier used to recognize
-        // the guest (see ReportEmailService) — it is never exposed to the UI
-        // and never used as an email destination.
-        return new LoginResponse(token, user.getId(), "Guest", null,
-                user.getRole().name(), isProfileComplete(user));
+        // NO usable email address. The temporary account's email stays in the
+        // database ONLY as the server-side identifier — it is never exposed to
+        // the UI and never used as an email destination.
+        return new LoginResponse(token, guestUser.getId(), "Guest", null,
+                guestUser.getRole().name(), isProfileComplete(guestUser));
     }
 
     /** Saves specialist details (name required, specialization optional) on the authenticated user. */

@@ -43,7 +43,7 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleSubmit} className="glass-pop rounded-2xl p-6 space-y-4 shadow-glow">
-          <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="worker1@dementiascreen.demo" />
+          <Input label="Email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" />
           <Input label="Password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           {error && <p className="text-sm text-warning">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Signing in…' : 'Login'}</Button>

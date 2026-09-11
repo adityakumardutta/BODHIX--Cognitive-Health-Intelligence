@@ -38,6 +38,19 @@ public class User {
     @Builder.Default
     private Boolean isActive = true;
 
+    /** True for per-session temporary guest accounts (isolated, auto-expiring). */
+    @Column(name = "is_temporary", nullable = false)
+    @Builder.Default
+    private Boolean isTemporary = false;
+
+    /** Unique session identifier for temporary guest accounts (UUID). */
+    @Column(name = "session_id", length = 100)
+    private String sessionId;
+
+    /** Expiration time for temporary guest accounts (after which cleanup removes them). */
+    @Column(name = "expires_at")
+    private LocalDateTime expiresAt;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 

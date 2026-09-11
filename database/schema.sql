@@ -20,6 +20,9 @@ CREATE TABLE users (
     specialization  VARCHAR(100) NULL,
     role            ENUM('HEALTH_WORKER', 'ADMIN') NOT NULL DEFAULT 'HEALTH_WORKER',
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    is_temporary    BOOLEAN NOT NULL DEFAULT FALSE,
+    session_id      VARCHAR(100) NULL,
+    expires_at      TIMESTAMP NULL,
     created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_users_email (email)
@@ -55,7 +58,7 @@ CREATE TABLE persons (
     registered_by       BIGINT NOT NULL,
     created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    CONSTRAINT fk_person_registered_by FOREIGN KEY (registered_by) REFERENCES users(id),
+    CONSTRAINT fk_person_registered_by FOREIGN KEY (registered_by) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_person_name (full_name),
     INDEX idx_person_created (created_at)
 ) ENGINE=InnoDB;
@@ -107,7 +110,7 @@ CREATE TABLE screenings (
     duration_seconds     INT NULL,
     is_offline_capture   BOOLEAN NOT NULL DEFAULT FALSE,
     CONSTRAINT fk_screening_person FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
-    CONSTRAINT fk_screening_worker FOREIGN KEY (conducted_by) REFERENCES users(id),
+    CONSTRAINT fk_screening_worker FOREIGN KEY (conducted_by) REFERENCES users(id) ON DELETE CASCADE,
     INDEX idx_screening_person (person_id),
     INDEX idx_screening_status (status),
     INDEX idx_screening_started (started_at)

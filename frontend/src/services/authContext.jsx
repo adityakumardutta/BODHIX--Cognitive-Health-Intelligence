@@ -3,6 +3,11 @@ import { api } from './api'
 
 const AuthContext = createContext(null)
 
+// Session-scoped storage: auth state exists only for the active browser session.
+// Closing the browser/tab ends the session and requires login again.
+// Same active session (including reloads within the same tab) keeps the user logged in.
+const STORAGE = window.sessionStorage
+
 // Single-flight guard: collapse duplicate concurrent login / guest-login
 // attempts (e.g. double-clicking Sign In or "Continue as Guest") so each emits
 // exactly ONE request. This guarantees invalid credentials produce a single 401
@@ -23,12 +28,13 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const raw = localStorage.getItem('ds_user')
+    // Restore session from sessionStorage (same browser session only)
+    const raw = STORAGE.getItem('ds_user')
     if (raw) {
       try {
         setUser(JSON.parse(raw))
       } catch {
-        localStorage.removeItem('ds_user')
+        STORAGE.removeItem('ds_user')
       }
     }
     setLoading(false)
@@ -38,11 +44,11 @@ export function AuthProvider({ children }) {
     // `once` guarantees a single in-flight POST /auth/login per credential set.
     return once('login:' + email, async () => {
       const res = await api.post('/auth/login', { email, password })
-      localStorage.setItem('ds_token', res.token)
+      STORAGE.setItem('ds_token', res.token)
     // Guest accounts are recognized by having NO email in the auth response
     // (the backend returns email: null for the guest session) — never by name.
         const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role, isGuest: !res.email }
-    localStorage.setItem('ds_user', JSON.stringify(userInfo))
+    STORAGE.setItem('ds_user', JSON.stringify(userInfo))
     setUser(userInfo)
     return userInfo
     })
@@ -64,7 +70,7 @@ export function AuthProvider({ children }) {
         specialization: res.specialization,
         isGuest: !!prev?.isGuest,
       }
-      localStorage.setItem('ds_user', JSON.stringify(next))
+      STORAGE.setItem('ds_user', JSON.stringify(next))
       return next
     })
     return res
@@ -78,19 +84,19 @@ export function AuthProvider({ children }) {
     // Single-flight: exactly one POST /auth/guest per attempt.
     return once('guest', async () => {
       const res = await api.post('/auth/guest')
-      localStorage.setItem('ds_token', res.token)
+      STORAGE.setItem('ds_token', res.token)
       // Guest session: the backend returns fullName "Guest" and NO email
       // (email: null) — the guest has no usable email address by design.
       const userInfo = { id: res.userId, fullName: res.fullName, email: res.email, role: res.role, isGuest: true }
-      localStorage.setItem('ds_user', JSON.stringify(userInfo))
+      STORAGE.setItem('ds_user', JSON.stringify(userInfo))
       setUser(userInfo)
       return userInfo
     })
   }
 
   function logout() {
-    localStorage.removeItem('ds_token')
-    localStorage.removeItem('ds_user')
+    STORAGE.removeItem('ds_token')
+    STORAGE.removeItem('ds_user')
     setUser(null)
   }
 

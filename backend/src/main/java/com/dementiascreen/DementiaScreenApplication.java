@@ -2,6 +2,7 @@ package com.dementiascreen;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * DementiaScreen — Early Cognitive Screening & Monitoring System.
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * recommendation that a qualified healthcare professional interpret results.
  */
 @SpringBootApplication
+@EnableScheduling
 public class DementiaScreenApplication {
     public static void main(String[] args) {
         SpringApplication.run(DementiaScreenApplication.class, args);

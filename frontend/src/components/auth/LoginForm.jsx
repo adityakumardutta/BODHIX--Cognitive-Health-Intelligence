@@ -20,7 +20,7 @@ import { useAuth } from "../../services/authContext.jsx";
 export default function LoginForm({ onSuccess, onFailure, onNavigate }) {
   const { login, guestLogin, updateProfile } = useAuth();
   const [specialistName, setSpecialistName] = useState("");
-  const [email, setEmail] = useState("worker1@dementiascreen.demo");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
