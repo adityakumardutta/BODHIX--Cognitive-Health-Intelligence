@@ -94,7 +94,17 @@ export function AuthProvider({ children }) {
     })
   }
 
-  function logout() {
+  async function logout() {
+    // For Guest sessions, ask the server to delete the temporary account and
+    // cascade all its data immediately (rather than waiting for the hourly job).
+    // Normal doctor sessions are stateless JWT — nothing to delete server-side.
+    if (user?.isGuest) {
+      try {
+        await api.del('/auth/session')
+      } catch (e) {
+        // Best-effort: even if the delete fails, clear the client session.
+      }
+    }
     STORAGE.removeItem('ds_token')
     STORAGE.removeItem('ds_user')
     setUser(null)

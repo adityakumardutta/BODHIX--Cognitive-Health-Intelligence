@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class AuthService {
 
@@ -167,6 +169,25 @@ public class AuthService {
         // the UI and never used as an email destination.
         return new LoginResponse(token, guestUser.getId(), "Guest", null,
                 guestUser.getRole().name(), isProfileComplete(guestUser));
+
+    }
+
+    /**
+     * Explicit Guest logout: deletes the temporary guest account and cascades
+     * all its data (persons, screenings, results, history, follow-ups) via
+     * ON DELETE CASCADE. Called when a Guest clicks "Logout" so their data
+     * does not linger until the next hourly cleanup.
+     *
+     * No-op (returns safely) for non-guest users — normal doctors are never
+     * deleted by this path.
+     */
+    @Transactional
+    public void deleteCurrentSession(User user) {
+        if (user == null || !Boolean.TRUE.equals(user.getIsTemporary())) {
+            return;
+        }
+        logSecurityEvent("Guest session deleted on explicit logout", user.getEmail());
+        userRepository.delete(user); // ON DELETE CASCADE removes all guest-owned data
     }
 
     /** Saves specialist details (name required, specialization optional) on the authenticated user. */

@@ -121,6 +121,8 @@ export default function ScreeningIntro() {
               alt="Illustration of a human brain representing cognitive screening"
               width={1024}
               height={1024}
+              loading="eager"
+              fetchpriority="high"
               className="w-56 max-w-full sm:w-64"
               style={{ filter: 'drop-shadow(0 18px 40px rgba(90, 80, 220, 0.25))' }}
             />

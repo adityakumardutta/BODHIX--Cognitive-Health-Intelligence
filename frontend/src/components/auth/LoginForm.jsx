@@ -153,7 +153,7 @@ export default function LoginForm({ onSuccess, onFailure, onNavigate }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isLoading}
-            placeholder="worker1@dementiascreen.demo"
+            placeholder="Enter your email"
             autoComplete="email"
             className="w-full px-4 py-3 bg-blue-50/60 hover:bg-blue-50/80 focus:bg-white border border-blue-100 focus:border-indigo-500 rounded-xl text-[13px] text-slate-800 font-medium placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all shadow-sm"
           />
