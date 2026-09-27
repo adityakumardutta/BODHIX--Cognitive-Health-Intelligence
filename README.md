@@ -133,7 +133,7 @@ per the project brief (no DSA included just to check a box).
 ### Prerequisites
 - Java 17+, Maven 3.9+
 - Node.js 18+
-- MySQL 8+
+- MySQL 8+ (local) **or** PostgreSQL 15+ (Supabase)
 
 ### Database setup
 ```bash
@@ -144,20 +144,36 @@ mysql -u root -p < database/seed.sql
 ### Backend
 ```bash
 cd backend
-cp .env.example .env   # then edit with your local MySQL credentials + a real JWT secret
-export $(cat .env | xargs)   # or configure these as real environment variables
+cp .env.example .env   # then edit with your local database credentials + a real JWT secret
 mvn spring-boot:run
 ```
-Backend runs on `http://localhost:8080`.
+No shell `export` step is needed on any OS: `application.properties` imports the file directly
+(`spring.config.import=optional:file:.env[.properties]`). Backend runs on
+`http://localhost:8081` (`server.port=${PORT:8081}`).
+
+The datasource is configuration-driven and defaults to the production PostgreSQL/Supabase setup.
+Because `database/schema.sql` and `database/seed.sql` are MySQL scripts, a local MySQL run only needs
+three overrides in `backend/.env` (the MySQL connector is already declared in `pom.xml`, so no code
+change is required):
+
+```properties
+DB_URL=jdbc:mysql://localhost:3306/dementia_screen?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+DB_DRIVER=com.mysql.cj.jdbc.Driver
+DB_DIALECT=org.hibernate.dialect.MySQLDialect
+```
+
+Report e-mails (SMTP/Resend) are optional locally: with no provider configured the screening is still
+saved and scored, and the backend merely logs `Email sending is not configured on this server`.
 
 ### Frontend
 ```bash
 cd frontend
-cp .env.example .env
 npm install
 npm run dev
 ```
-Frontend runs on `http://localhost:5173`.
+Frontend runs on `http://localhost:5173`. No frontend `.env` is required for local development —
+`src/services/api.js` falls back to `http://localhost:8081/api` when `VITE_API_URL` is unset, which
+matches the backend port above (a committed `.env.production` overrides this for deployment).
 
 ## 12. Test login credentials (DEMO DATA ONLY)
 
